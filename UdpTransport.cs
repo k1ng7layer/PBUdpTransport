@@ -69,7 +69,7 @@ namespace UdpTransport
             var transmission = new UdpTransmission
             {
                 Packets = packets,
-                WindowSize = 5,
+                WindowSize = 3,
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
@@ -124,7 +124,7 @@ namespace UdpTransport
             var messageLength = NetworkMessageHelper.GetMessageLength(data);
             var id = NetworkMessageHelper.GetTransmissionId(data);
             //var windowSize = NetworkMessageHelper.GetWindowSize(data);
-            ushort windowSize = 5;
+            ushort windowSize = 3;
             var packetSequenceLength = PacketHelper.GetPacketSequenceSize(messageLength, _udpConfiguration.MTU);
 
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
