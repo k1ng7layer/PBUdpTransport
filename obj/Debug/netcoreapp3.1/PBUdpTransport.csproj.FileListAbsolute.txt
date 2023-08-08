@@ -1,0 +1,9 @@
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\bin\Debug\netcoreapp3.1\PBUdpTransport.deps.json
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\bin\Debug\netcoreapp3.1\PBUdpTransport.dll
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\bin\Debug\netcoreapp3.1\PBUdpTransport.pdb
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.csprojAssemblyReference.cache
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.AssemblyInfoInputs.cache
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.AssemblyInfo.cs
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.csproj.CoreCompileInputs.cache
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.dll
+D:\GITRepository\PBUdpTransport\UdpTransportExample\PBUdpTransport\obj\Debug\netcoreapp3.1\PBUdpTransport.pdb
