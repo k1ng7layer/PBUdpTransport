@@ -1,6 +1,6 @@
 ﻿namespace UdpTransport
 {
-    public enum EPacketFlags : ushort
+    internal enum EPacketFlags : ushort
     {
         FirstPacket,
         LastPacket,

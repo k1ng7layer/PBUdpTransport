@@ -3,7 +3,7 @@ using System.Net;
 
 namespace UdpTransport
 {
-    public class UdpTransmission
+    internal class UdpTransmission
     {
         public ushort Id { get; set; }
         public IPEndPoint RemoteEndPoint { get; set; }

@@ -2,7 +2,7 @@
 
 namespace UdpTransport
 {
-    public static class NetworkMessageHelper
+    internal static class NetworkMessageHelper
     {
         public static EPacketFlags GetPacketFlags(byte[] data)
         {

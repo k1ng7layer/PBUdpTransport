@@ -2,7 +2,7 @@
 
 namespace UdpTransport
 {
-    public static class PacketHelper
+    internal static class PacketHelper
     {
         public static Packet[] CreatePacketSequence(byte[] data, 
             int mtu, 

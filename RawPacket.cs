@@ -2,7 +2,7 @@
 
 namespace UdpTransport
 {
-    public readonly struct RawPacket
+    internal readonly struct RawPacket
     {
         public readonly IPEndPoint EndPoint;
         public readonly byte[] Payload;
