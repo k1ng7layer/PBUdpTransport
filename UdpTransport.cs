@@ -415,8 +415,6 @@ namespace UdpTransport
 
         private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId)
         {
-            if(transmission.Packets[packetId] != null)
-                return;
             // var packet = transmission.Packets[packetId];
             //
             // if (packet != null)
