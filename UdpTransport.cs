@@ -451,6 +451,8 @@ namespace UdpTransport
             if (HasCompleteTransmission(transmission))
             // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             {
+                PrepareMessage(transmission);
+                
                 transmission.Completed?.Invoke();
             }
           
@@ -509,8 +511,6 @@ namespace UdpTransport
             // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             if (HasCompleteTransmission(transmission))
             {
-                PrepareMessage(transmission);
-                
                 lock (_locker)
                 {
                     var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
