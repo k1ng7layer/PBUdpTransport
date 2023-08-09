@@ -349,7 +349,7 @@ namespace UdpTransport
                         break;
                     
                     SendAck(transmission, incomePacket);
-                    PrepareMessage(transmission);
+                    //PrepareMessage(transmission);
                     break;
                 case EPacketFlags.Ack:
                     
@@ -367,6 +367,7 @@ namespace UdpTransport
                     WritePacket(transmission, data, packetId);
                     break;
                 case EPacketFlags.FirstPacket:
+                    
                     CreateTransmission(data, ipEndpoint, incomePacket);
                     break;
             }
@@ -508,6 +509,11 @@ namespace UdpTransport
             
             var packetsLength = transmission.Packets.Length;
             
+            if (packetId == transmission.SmallestPendingPacketIndex)
+            {
+                ShiftTransmissionWindow(transmission);
+            }
+            
             // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             if (HasCompleteTransmission(transmission))
             {
@@ -521,10 +527,7 @@ namespace UdpTransport
                 Console.WriteLine($"transmission.Completed");
                 transmission.Completed?.Invoke();
             }
-            else if (packetId == transmission.SmallestPendingPacketIndex)
-            {
-                ShiftTransmissionWindow(transmission);
-            }
+          
         }
         
         private bool HasCompleteTransmission(UdpTransmission transmission)
