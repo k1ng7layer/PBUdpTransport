@@ -19,9 +19,9 @@ namespace UdpTransport
         private readonly EndPoint _localEndPoint;
         private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpSenderTransmissionsTable = new();
         private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpReceiverTransmissionsTable = new();
-        private readonly Queue<TransportMessage> _transportMessagesQueue = new();
-        private readonly Queue<RawPacket> _receivedRawPacketsQueue = new();
-        private readonly Queue<RawPacket> _sendRawPacketsQueue = new();
+        private readonly ConcurrentQueue<TransportMessage> _transportMessagesQueue = new();
+        private readonly ConcurrentQueue<RawPacket> _receivedRawPacketsQueue = new();
+        private readonly ConcurrentQueue<RawPacket> _sendRawPacketsQueue = new();
         private readonly object _locker = new();
         private readonly BlockingCollection<UdpTransmission> _udpTransmissions = new();
         private int _transmissionsCount;
@@ -259,7 +259,7 @@ namespace UdpTransport
 
                 while (_sendRawPacketsQueue.Count > 0 && maxSendTime > DateTime.Now)
                 {
-                    var packet = _sendRawPacketsQueue.Dequeue();
+                    var hasPacket = _sendRawPacketsQueue.TryDequeue(out var packet);
 
                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, packet.EndPoint);
                 }
@@ -283,9 +283,9 @@ namespace UdpTransport
                         while (_receivedRawPacketsQueue.Count > 0 && readTime > DateTime.Now)
                             // while (_receivedRawPacketsQueue.Count > 0 && readTime > DateTime.Now)
                         {
-                            var rawPacket = _receivedRawPacketsQueue.Dequeue();
+                            var hasRawPacket = _receivedRawPacketsQueue.TryDequeue(out var packet);
 
-                            HandleRawPacket(rawPacket);
+                            HandleRawPacket(packet);
                         }
 
                         await Task.Delay(READ_TIME);
@@ -415,6 +415,8 @@ namespace UdpTransport
 
         private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId)
         {
+            if(transmission.Packets[packetId] != null)
+                return;
             // var packet = transmission.Packets[packetId];
             //
             // if (packet != null)
@@ -462,24 +464,28 @@ namespace UdpTransport
         {
             var messagePayload = new byte[transmission.ReceivedLenght + sizeof(ushort) * 2];
             var offset = 0;
-            
-            foreach (var packet in transmission.Packets)
+
+            lock (_locker)
             {
-                if(packet.PacketId == transmission.Packets.Length - 1)
-                    continue;
+                foreach (var packet in transmission.Packets)
+                {
+                    if(packet.PacketId == transmission.Packets.Length - 1)
+                        continue;
 
-                Buffer.BlockCopy(packet.Payload, 
-                    0,
-                    messagePayload,
-                    offset, 
-                    packet.Payload.Length);
+                    Buffer.BlockCopy(packet.Payload, 
+                        0,
+                        messagePayload,
+                        offset, 
+                        packet.Payload.Length);
                 
-                offset = packet.Payload.Length;
-            }
+                    offset = packet.Payload.Length;
+                }
             
-            var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
+                var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
 
-            _transportMessagesQueue.Enqueue(message);
+                _transportMessagesQueue.Enqueue(message);
+            }
+           
         }
         
         private void HandleAck(UdpTransmission transmission, ushort packetId)
