@@ -451,17 +451,18 @@ namespace UdpTransport
             transmission.ReceivedLenght += data.Length;
             
             var packetsLength = transmission.Packets.Length;
+
+            if (packetId == transmission.SmallestPendingPacketIndex)
+            {
+                ShiftTransmissionWindow(transmission);
+            }
             
-           
             if (HasCompleteTransmission(transmission))
             // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             {
                 transmission.Completed?.Invoke();
             }
-            else if (packetId == transmission.SmallestPendingPacketIndex)
-            {
-                ShiftTransmissionWindow(transmission);
-            }
+          
         }
 
         private void PrepareMessage(UdpTransmission transmission)
