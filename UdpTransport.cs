@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -16,12 +17,13 @@ namespace UdpTransport
         private readonly IUdpConfiguration _udpConfiguration;
         private readonly Socket _socketReceiver;
         private readonly EndPoint _localEndPoint;
-        private readonly Dictionary<IPEndPoint, Dictionary<ushort, UdpTransmission>> _udpSenderTransmissionsTable = new();
-        private readonly Dictionary<IPEndPoint, Dictionary<ushort, UdpTransmission>> _udpReceiverTransmissionsTable = new();
+        private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpSenderTransmissionsTable = new();
+        private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpReceiverTransmissionsTable = new();
         private readonly Queue<TransportMessage> _transportMessagesQueue = new();
         private readonly Queue<RawPacket> _receivedRawPacketsQueue = new();
         private readonly Queue<RawPacket> _sendRawPacketsQueue = new();
         private readonly object _locker = new();
+        private readonly BlockingCollection<UdpTransmission> _udpTransmissions = new();
         private int _transmissionsCount;
         private bool _running;
 
@@ -88,12 +90,12 @@ namespace UdpTransport
             {
                 if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
                 {
-                    transmissionTable = new Dictionary<ushort, UdpTransmission>();
-                    _udpSenderTransmissionsTable.Add(remoteEndpoint, transmissionTable);
-                    transmissionTable.Add(sequenceId, transmission);
+                    transmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
+                    _udpSenderTransmissionsTable.TryAdd(remoteEndpoint, transmissionTable);
+                    transmissionTable.TryAdd(sequenceId, transmission);
                 }
             }
-            
+
             return taskSource.Task;
         }
 
@@ -146,13 +148,13 @@ namespace UdpTransport
             };
 
             transmission.Packets[0] = incomeFirstPacket;
-            
-            var clientTransmissionTable = new Dictionary<ushort, UdpTransmission>();
+
+            var clientTransmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
             lock (_locker)
             {
-                clientTransmissionTable.Add(transmissionId, transmission);
+                clientTransmissionTable.TryAdd(transmissionId, transmission);
             
-                _udpReceiverTransmissionsTable.Add(remoteEndPoint, clientTransmissionTable);
+                _udpReceiverTransmissionsTable.TryAdd(remoteEndPoint, clientTransmissionTable);
             }
          
             
@@ -510,7 +512,7 @@ namespace UdpTransport
                 lock (_locker)
                 {
                     var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
-                    transmissionsTable.Remove(transmission.Id);
+                    transmissionsTable.Remove(transmission.Id, out trans);
                 }
        
                 
