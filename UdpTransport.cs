@@ -131,6 +131,8 @@ namespace UdpTransport
 
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
 
+            SendAck(transmissionId, remoteEndPoint, incomeFirstPacket);
+            
             var hasTransmissionsTable =
                 _udpReceiverTransmissionsTable.TryGetValue(remoteEndPoint, out var transmissions);
             
@@ -156,9 +158,7 @@ namespace UdpTransport
             
                 _udpReceiverTransmissionsTable.TryAdd(remoteEndPoint, clientTransmissionTable);
             }
-         
             
-            SendAck(transmission, incomeFirstPacket);
         }
         
         private bool TryGetSenderTransmission(ushort transmissionId, IPEndPoint endPoint, out UdpTransmission transmission)
@@ -328,15 +328,6 @@ namespace UdpTransport
                 ResendTime = DateTime.Now
             };
 
-            // var hasRecords = HasTransmissionRecords(ipEndpoint, transmissionId);
-            //
-            // if (packetFlags is EPacketFlags.Ack or EPacketFlags.LastPacket or EPacketFlags.RequestForPacket &&
-            //     !hasRecords)
-            // {
-            //     Console.WriteLine($"there is no records for endpoint {ipEndpoint}");
-            //     return;
-            // }
-
             bool hasTransmission = false;
             UdpTransmission transmission = null;
             hasTransmission = packetFlags == EPacketFlags.Ack ? TryGetSenderTransmission(transmissionId, ipEndpoint, out transmission) :  TryGetReceiverTransmission(transmissionId, ipEndpoint, out transmission);
@@ -348,7 +339,7 @@ namespace UdpTransport
                     if(!hasTransmission)
                         break;
                     
-                    SendAck(transmission, incomePacket);
+                    SendAck(transmission.Id, ipEndpoint, incomePacket);
                     //PrepareMessage(transmission);
                     break;
                 case EPacketFlags.Ack:
@@ -363,7 +354,7 @@ namespace UdpTransport
                     if(!hasTransmission)
                         break;
                     
-                    SendAck(transmission, incomePacket);
+                    SendAck(transmission.Id, ipEndpoint, incomePacket);
                     WritePacket(transmission, data, packetId);
                     break;
                 case EPacketFlags.FirstPacket:
@@ -542,15 +533,15 @@ namespace UdpTransport
             return true;
         }
 
-        private void SendAck(UdpTransmission transmission, Packet packet)
+        private void SendAck(ushort transmissionId, IPEndPoint remoteEndpoint, Packet packet)
         {
             var byteWriter = new ByteWriter(8);
             byteWriter.AddUshort((ushort)EProtocolType.UDP);
             byteWriter.AddUshort((ushort)EPacketFlags.Ack);
-            byteWriter.AddUshort(transmission.Id);
+            byteWriter.AddUshort(transmissionId);
             byteWriter.AddUshort(packet.PacketId);
             
-            var rawPacket = new RawPacket(transmission.RemoteEndPoint, byteWriter.Data);
+            var rawPacket = new RawPacket(remoteEndpoint, byteWriter.Data);
             Console.WriteLine($"SendAck for packet id = {packet.PacketId}");
             _sendRawPacketsQueue.Enqueue(rawPacket);
         }
