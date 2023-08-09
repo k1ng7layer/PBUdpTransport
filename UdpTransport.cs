@@ -208,7 +208,7 @@ namespace UdpTransport
                 
                                     packet.ResendAttemptCount++;
 
-                                    Console.WriteLine($"continue sending = {i}");
+                                    Console.WriteLine($"sending packet with id = {i}");
                                     // Console.WriteLine($"sending packet with id {i}, windowUpperBound = {windowUpperBound}, transmission.WindowLowerBoundIndex = {transmission.WindowLowerBoundIndex}");
                                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
                                     await Task.Delay(200);
@@ -451,7 +451,9 @@ namespace UdpTransport
             
             var packetsLength = transmission.Packets.Length;
             
-            if (packetId == transmission.Packets[packetsLength - 1].PacketId)
+           
+            if (HasCompleteTransmission(transmission))
+            // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             {
                 transmission.Completed?.Invoke();
             }
