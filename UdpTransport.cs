@@ -194,7 +194,7 @@ namespace UdpTransport
                             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
             
                             for (var i = transmission.WindowLowerBoundIndex;
-                                 i < windowUpperBound && DateTime.Now < maxSendTime; 
+                                 i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Length - 1; 
                                  i++)
                             {
                             
