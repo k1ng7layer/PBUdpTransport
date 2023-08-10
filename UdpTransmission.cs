@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net;
 
 namespace UdpTransport
@@ -7,7 +8,7 @@ namespace UdpTransport
     {
         public ushort Id { get; set; }
         public IPEndPoint RemoteEndPoint { get; set; }
-        public Packet[] Packets { get; set; }
+        public ConcurrentDictionary<ushort, Packet> Packets { get; set; }
         public ushort WindowLowerBoundIndex { get; set; }
         public ushort WindowSize { get; set; }
         public ushort SmallestPendingPacketIndex { get; set; }

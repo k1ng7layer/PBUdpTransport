@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 
 namespace UdpTransport
 {
     internal static class PacketHelper
     {
-        public static Packet[] CreatePacketSequence(byte[] data, 
+        public static ConcurrentDictionary<ushort, Packet> CreatePacketSequence(byte[] data, 
             int mtu, 
             ushort sequenceId)
         {
@@ -28,6 +29,9 @@ namespace UdpTransport
             byteWriter.AddUshort((ushort)EPacketFlags.Default);
             byteWriter.AddUshort(sequenceId);
 
+            var dictionary = new ConcurrentDictionary<ushort, Packet>();
+            dictionary.TryAdd(firstPacket.PacketId, firstPacket);
+            dictionary.TryAdd(lastPacket.PacketId, lastPacket);
             // multiply by headers count including packet ID bytes size
             var writeOffset = sizeof(ushort) * 4; 
             
@@ -57,13 +61,14 @@ namespace UdpTransport
                         PacketId = packetId
                     };
 
+                    dictionary.TryAdd(packetId, packet);
                     packets[packetId++] = packet;
                     
                     remainingLength -= lengthToRead;
                 }
             }
 
-            return packets;
+            return dictionary;
         }
 
         public static int GetPacketSequenceSize(byte[] data, int mtu)
