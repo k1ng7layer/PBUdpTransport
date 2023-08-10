@@ -86,15 +86,13 @@ namespace UdpTransport
                 taskSource.SetResult(true);
             };
             
-            lock (_locker)
+            if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
             {
-                if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
-                {
-                    transmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
-                    _udpSenderTransmissionsTable.TryAdd(remoteEndpoint, transmissionTable);
-                    transmissionTable.TryAdd(sequenceId, transmission);
-                }
+                transmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
+                _udpSenderTransmissionsTable.TryAdd(remoteEndpoint, transmissionTable);
             }
+            
+            transmissionTable.TryAdd(sequenceId, transmission);
 
             return taskSource.Task;
         }
