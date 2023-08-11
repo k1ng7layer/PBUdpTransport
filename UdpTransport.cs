@@ -206,7 +206,7 @@ namespace UdpTransport
                 
                                     packet.ResendAttemptCount++;
 
-                                    Console.WriteLine($"sending packet with id = {i}");
+                                    //Console.WriteLine($"sending packet with id = {i}");
                                     // Console.WriteLine($"sending packet with id {i}, windowUpperBound = {windowUpperBound}, transmission.WindowLowerBoundIndex = {transmission.WindowLowerBoundIndex}");
                                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
                                     await Task.Delay(5);
@@ -229,7 +229,7 @@ namespace UdpTransport
 
         private async Task ProcessSocketRawReceive()
         {
-            var data = new byte[2048];
+            var data = new byte[1032];
             var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
             try
             {
@@ -312,9 +312,9 @@ namespace UdpTransport
 
             var protocolType = NetworkMessageHelper.GetProtocolType(data);
             var packetFlags = NetworkMessageHelper.GetPacketFlags(data);
-
+            Console.WriteLine($"packetFlags = {packetFlags}");
             //Console.WriteLine($"received packet with flag = {packetFlags}");
-            Console.WriteLine($"received packet with flag = {packetFlags}");
+            //Console.WriteLine($"received packet with flag = {packetFlags}");
             var packetId = NetworkMessageHelper.GetPacketId(data);
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
             
@@ -344,7 +344,7 @@ namespace UdpTransport
                     
                     if(!hasTransmission)
                         break;
-                    
+                    //Console.WriteLine($"HandleAck = {packetId}");
                     HandleAck(transmission, packetId);
                     break;
                 case EPacketFlags.Default:
@@ -487,7 +487,7 @@ namespace UdpTransport
             if(!TryGetSenderTransmission(transmission.Id, transmission.RemoteEndPoint, out var trans))
                 return;
             
-            Console.WriteLine($"HandleAck = {packetId}");
+            // Console.WriteLine($"HandleAck = {packetId}");
             
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
             
@@ -511,14 +511,9 @@ namespace UdpTransport
             // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             if (HasCompleteTransmission(transmission))
             {
-                lock (_locker)
-                {
-                    var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
-                    transmissionsTable.Remove(transmission.Id, out trans);
-                }
-       
-                
-                Console.WriteLine($"transmission.Completed");
+                var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
+                transmissionsTable.Remove(transmission.Id, out trans);
+                //Console.WriteLine($"transmission.Completed");
                 transmission.Completed?.Invoke();
             }
           
