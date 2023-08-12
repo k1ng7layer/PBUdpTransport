@@ -150,12 +150,17 @@ namespace UdpTransport
             transmission.Packets[0] = incomeFirstPacket;
 
             var clientTransmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
-            lock (_locker)
+
+            if (_udpReceiverTransmissionsTable.ContainsKey(remoteEndPoint))
             {
-                clientTransmissionTable.TryAdd(transmissionId, transmission);
-            
+                clientTransmissionTable = _udpReceiverTransmissionsTable[remoteEndPoint];
+            }
+            else
+            {
                 _udpReceiverTransmissionsTable.TryAdd(remoteEndPoint, clientTransmissionTable);
             }
+            
+            clientTransmissionTable.TryAdd(transmissionId, transmission);
             
         }
         
@@ -206,7 +211,7 @@ namespace UdpTransport
                 
                                     packet.ResendAttemptCount++;
 
-                                    //Console.WriteLine($"sending packet with id = {i}");
+                                    await Console.Out.WriteAsync($"sending packet with id = {i} \n");
                                     // Console.WriteLine($"sending packet with id {i}, windowUpperBound = {windowUpperBound}, transmission.WindowLowerBoundIndex = {transmission.WindowLowerBoundIndex}");
                                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
                                     await Task.Delay(5);
@@ -312,7 +317,7 @@ namespace UdpTransport
 
             var protocolType = NetworkMessageHelper.GetProtocolType(data);
             var packetFlags = NetworkMessageHelper.GetPacketFlags(data);
-            Console.WriteLine($"packetFlags = {packetFlags}");
+            //Console.WriteLine($"packetFlags = {packetFlags}");
             //Console.WriteLine($"received packet with flag = {packetFlags}");
             //Console.WriteLine($"received packet with flag = {packetFlags}");
             var packetId = NetworkMessageHelper.GetPacketId(data);
@@ -487,7 +492,7 @@ namespace UdpTransport
             if(!TryGetSenderTransmission(transmission.Id, transmission.RemoteEndPoint, out var trans))
                 return;
             
-            // Console.WriteLine($"HandleAck = {packetId}");
+            Console.Out.WriteLineAsync($"HandleAck = {packetId}");
             
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
             
