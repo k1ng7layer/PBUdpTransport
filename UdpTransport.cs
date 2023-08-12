@@ -452,7 +452,7 @@ namespace UdpTransport
                     continue;
 
                 Buffer.BlockCopy(packet.Payload, 
-                    0,
+                    8,
                     messagePayload,
                     offset, 
                     packet.Count);
