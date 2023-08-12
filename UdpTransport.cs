@@ -71,7 +71,7 @@ namespace UdpTransport
             var transmission = new UdpTransmission
             {
                 Packets = packets,
-                WindowSize = 3,
+                WindowSize = 2,
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
@@ -120,17 +120,13 @@ namespace UdpTransport
         
         private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint, Packet incomeFirstPacket)
         {
-            
-            
             var messageLength = NetworkMessageHelper.GetMessageLength(data);
             var id = NetworkMessageHelper.GetTransmissionId(data);
             //var windowSize = NetworkMessageHelper.GetWindowSize(data);
-            ushort windowSize = 3;
+            ushort windowSize = 2;
             var packetSequenceLength = PacketHelper.GetPacketSequenceSize(messageLength, _udpConfiguration.MTU);
 
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
-
-            
             
             var hasTransmissionsTable =
                 _udpReceiverTransmissionsTable.TryGetValue(remoteEndPoint, out var transmissions);
@@ -149,7 +145,7 @@ namespace UdpTransport
                 RemoteEndPoint = remoteEndPoint,
             };
 
-            transmission.Packets[0] = incomeFirstPacket;
+            //transmission.Packets[0] = incomeFirstPacket;
 
             ConcurrentDictionary<ushort, UdpTransmission> clientTransmissionTable;
             if (_udpReceiverTransmissionsTable.ContainsKey(remoteEndPoint))
@@ -163,7 +159,6 @@ namespace UdpTransport
             }
             
             clientTransmissionTable.TryAdd(transmissionId, transmission);
-            
         }
         
         private bool TryGetSenderTransmission(ushort transmissionId, IPEndPoint endPoint, out UdpTransmission transmission)
@@ -339,14 +334,6 @@ namespace UdpTransport
 
             switch (packetFlags)
             {
-                case EPacketFlags.LastPacket:
-                    
-                    if(!hasTransmission)
-                        break;
-                    
-                    SendAck(transmission.Id, ipEndpoint, incomePacket);
-                    //PrepareMessage(transmission);
-                    break;
                 case EPacketFlags.Ack:
                     
                     if(!hasTransmission)
@@ -518,8 +505,8 @@ namespace UdpTransport
         {
             foreach (var packet in transmission.Packets.Values)
             {
-                if (packet.PacketId == 0 || packet.PacketId == transmission.Packets.Count - 1)
-                    continue;
+                // if (packet.PacketId == 0 || packet.PacketId == transmission.Packets.Count - 1)
+                //     continue;
                 
                 if (!packet.HasAck)
                     return false;

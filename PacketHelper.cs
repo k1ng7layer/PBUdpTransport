@@ -11,14 +11,14 @@ namespace UdpTransport
         {
              var packetsNum = data.Length / (double)mtu;
             var packetsNumRounded = (int)Math.Round(packetsNum, MidpointRounding.ToPositiveInfinity);
-            var totalPackets = packetsNumRounded + 2;
+            var totalPackets = packetsNumRounded + 1;
             var packets = new Packet[totalPackets];
 
             var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0);
-            var lastPacket = CreateControlPacket(EPacketFlags.LastPacket, data.Length, sequenceId, (ushort)(totalPackets - 1));
+            //var lastPacket = CreateControlPacket(EPacketFlags.LastPacket, data.Length, sequenceId, (ushort)(totalPackets - 1));
             
             packets[0] = firstPacket;
-            packets[totalPackets - 1] = lastPacket;
+            //packets[totalPackets - 1] = lastPacket;
             
             ushort packetId = 1;
             var span = new Span<byte>(data);
@@ -31,7 +31,7 @@ namespace UdpTransport
 
             var dictionary = new ConcurrentDictionary<ushort, Packet>();
             dictionary.TryAdd(firstPacket.PacketId, firstPacket);
-            dictionary.TryAdd(lastPacket.PacketId, lastPacket);
+            //dictionary.TryAdd(lastPacket.PacketId, lastPacket);
             // multiply by headers count including packet ID bytes size
             var writeOffset = sizeof(ushort) * 4; 
             
