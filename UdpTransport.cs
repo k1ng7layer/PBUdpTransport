@@ -418,11 +418,6 @@ namespace UdpTransport
 
         private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId)
         {
-            // var packet = transmission.Packets[packetId];
-            //
-            // if (packet != null)
-            //     return;
-            
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
 
             if (packetId < transmission.WindowLowerBoundIndex || packetId > windowUpperBound - 1)
@@ -440,12 +435,9 @@ namespace UdpTransport
             };
 
             transmission.Packets.TryAdd(packetId, packet);
-            //transmission.Packets[packetId - 1] = packet;
             packet.HasAck = true;
 
             transmission.ReceivedLenght += data.Length;
-            
-            var packetsLength = transmission.Packets.Count;
 
             if (packetId == transmission.SmallestPendingPacketIndex)
             {
@@ -453,11 +445,8 @@ namespace UdpTransport
             }
             
             if (HasCompleteTransmission(transmission))
-            // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             {
                 PrepareMessage(transmission);
-                
-                //transmission.Completed?.Invoke();
             }
           
         }
@@ -507,21 +496,20 @@ namespace UdpTransport
             
             packet.HasAck = true;
             
-           
-            if (packetId == transmission.SmallestPendingPacketIndex)
-            {
-                ShiftTransmissionWindow(transmission);
-            }
-            
-            // if (packetId == transmission.Packets[packetsLength - 1].PacketId)
             if (HasCompleteTransmission(transmission))
             {
                 var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
                 transmissionsTable.Remove(transmission.Id, out trans);
                 //Console.WriteLine($"transmission.Completed");
                 transmission.Completed?.Invoke();
+                
+                return;
             }
-          
+            
+            if (packetId == transmission.SmallestPendingPacketIndex)
+            {
+                ShiftTransmissionWindow(transmission);
+            }
         }
         
         private bool HasCompleteTransmission(UdpTransmission transmission)
@@ -553,27 +541,8 @@ namespace UdpTransport
         
         private void ShiftTransmissionWindow(UdpTransmission transmission)
         {
-            var smallestUnAckedPacket = transmission.SmallestPendingPacketIndex;
-            
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
             var lastPacketIndex = transmission.Packets.Count - 1;
-
-            // for (var i = (ushort)(smallestUnAckedPacket + 1);
-            //      i < windowUpperBound + 1 && i <= lastPacketId; 
-            //      i++)
-            // {
-            //     var packet = transmission.Packets[i];
-            //
-            //     if (!packet.HasAck)
-            //     {
-            //         transmission.SmallestPendingPacketIndex = packet.PacketId;
-            //         transmission.WindowLowerBoundIndex = i;
-            //         break;
-            //     }
-            //     
-            //     transmission.SmallestPendingPacketIndex = packet.PacketId;
-            //     transmission.WindowLowerBoundIndex++;
-            // }
 
             for (var i = (ushort)(transmission.SmallestPendingPacketIndex + 1);
                  i < windowUpperBound + 1 && i <= lastPacketIndex; 
