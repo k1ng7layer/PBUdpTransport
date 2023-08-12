@@ -239,7 +239,7 @@ namespace UdpTransport
                 {
                     var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
                     
-                    var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data);
+                    var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data, receiveFromResult.ReceivedBytes);
             
                     _receivedRawPacketsQueue.Enqueue(rawPacket);
                 }
@@ -347,7 +347,7 @@ namespace UdpTransport
                         break;
                     
                     SendAck(transmission.Id, ipEndpoint, incomePacket);
-                    WritePacket(transmission, data, packetId);
+                    WritePacket(transmission, data, packetId, rawPacket.Count);
                     break;
                 case EPacketFlags.FirstPacket:
                     
@@ -405,7 +405,7 @@ namespace UdpTransport
             return true;
         }
 
-        private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId)
+        private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId, int count)
         {
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
 
@@ -420,7 +420,8 @@ namespace UdpTransport
                 Payload = data,
                 PacketId = packetId,
                 ResendTime = DateTime.Now,
-                HasAck = false
+                HasAck = false,
+                Count = count
             };
 
             transmission.Packets.TryAdd(packetId, packet);
@@ -454,7 +455,7 @@ namespace UdpTransport
                     0,
                     messagePayload,
                     offset, 
-                    packet.Payload.Length);
+                    packet.Count);
                 
                 offset = packet.Payload.Length;
             }
@@ -523,7 +524,7 @@ namespace UdpTransport
             byteWriter.AddUshort(transmissionId);
             byteWriter.AddUshort(packet.PacketId);
             
-            var rawPacket = new RawPacket(remoteEndpoint, byteWriter.Data);
+            var rawPacket = new RawPacket(remoteEndpoint, byteWriter.Data, byteWriter.WritePos);
             Console.WriteLine($"SendAck for packet id = {packet.PacketId}");
             _sendRawPacketsQueue.Enqueue(rawPacket);
         }

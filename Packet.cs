@@ -9,5 +9,6 @@ namespace UdpTransport
         public DateTime ResendTime;
         public int ResendAttemptCount;
         public bool HasAck;
+        public int Count;
     }
 }
