@@ -461,6 +461,13 @@ namespace UdpTransport
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
+            
+            var hasTransmissions =  _udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions);
+
+            if (hasTransmissions)
+            {
+                transmissions.TryRemove(transmission.Id, out var trans);
+            }
 
             _transportMessagesQueue.Enqueue(message);
            
