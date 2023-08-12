@@ -121,6 +121,7 @@ namespace UdpTransport
         private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint, Packet incomeFirstPacket)
         {
             
+            
             var messageLength = NetworkMessageHelper.GetMessageLength(data);
             var id = NetworkMessageHelper.GetTransmissionId(data);
             //var windowSize = NetworkMessageHelper.GetWindowSize(data);
@@ -129,14 +130,15 @@ namespace UdpTransport
 
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
 
-            SendAck(transmissionId, remoteEndPoint, incomeFirstPacket);
+            
             
             var hasTransmissionsTable =
                 _udpReceiverTransmissionsTable.TryGetValue(remoteEndPoint, out var transmissions);
             
+            SendAck(transmissionId, remoteEndPoint, incomeFirstPacket);
+            
             if(hasTransmissionsTable && transmissions.ContainsKey(transmissionId))
                 return;
-            
             var transmission = new UdpTransmission()
             {
                 Id = id,
@@ -149,14 +151,14 @@ namespace UdpTransport
 
             transmission.Packets[0] = incomeFirstPacket;
 
-            var clientTransmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
-
+            ConcurrentDictionary<ushort, UdpTransmission> clientTransmissionTable;
             if (_udpReceiverTransmissionsTable.ContainsKey(remoteEndPoint))
             {
                 clientTransmissionTable = _udpReceiverTransmissionsTable[remoteEndPoint];
             }
             else
             {
+                clientTransmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
                 _udpReceiverTransmissionsTable.TryAdd(remoteEndPoint, clientTransmissionTable);
             }
             
