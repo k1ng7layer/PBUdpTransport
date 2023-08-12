@@ -457,7 +457,7 @@ namespace UdpTransport
                     offset, 
                     packet.Count);
                 
-                offset = packet.Payload.Length;
+                offset = packet.Count;
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
