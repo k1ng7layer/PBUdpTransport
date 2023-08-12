@@ -427,7 +427,7 @@ namespace UdpTransport
             transmission.Packets.TryAdd(packetId, packet);
             packet.HasAck = true;
 
-            transmission.ReceivedLenght += data.Length;
+            transmission.ReceivedLenght += count;
 
             if (packetId == transmission.SmallestPendingPacketIndex)
             {
