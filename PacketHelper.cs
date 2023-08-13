@@ -10,14 +10,14 @@ namespace PBUdpTransport
             int mtu, 
             ushort sequenceId)
         {
-              const int headersLength = 8;
+            const int headersLength = 8;
             
             var packetsNumWoHeaders = data.Length / (double)mtu;
             var packetsNumRounded = (int)Math.Round(packetsNumWoHeaders, MidpointRounding.ToPositiveInfinity);
 
-            var totalPacketsHeadersLength = packetsNumWoHeaders * headersLength;
+            var totalPacketsHeadersLength = packetsNumRounded * headersLength;
             
-            var packetNumWithHeaders = (data.Length + totalPacketsHeadersLength) / mtu;
+            var packetNumWithHeaders = (data.Length + totalPacketsHeadersLength) / (double)mtu;
             var packetNumRoundedWithHeaders = (int)Math.Round(packetNumWithHeaders, MidpointRounding.ToPositiveInfinity);
             
             var totalPackets = packetNumRoundedWithHeaders + 1;
@@ -47,35 +47,38 @@ namespace PBUdpTransport
             
             var remainingLength = data.Length;
 
-            for (var i = 0; i < data.Length + totalPacketsHeadersLength; i++)
+            for (var i = 0; i < (data.Length); i += (mtu - headersLength))
             {
-                if (i % (data.Length + totalPacketsHeadersLength / packetsNumRounded) == 0)
+                var lengthToRead = remainingLength <= (mtu - headersLength) ? remainingLength : (mtu - headersLength);
+                var totalPayload = new byte[lengthToRead + headersLength];
+                var packetIdBytes = BitConverter.GetBytes(packetId);
+                try
                 {
-                    var lengthToRead = remainingLength < mtu - headersLength ? remainingLength : mtu;
-               
-                    var clientPayload = span.Slice(i, lengthToRead - headersLength);
-            
-                    var totalPayload = new byte[lengthToRead];
-                    
-                    var packetIdBytes = BitConverter.GetBytes(packetId);
-                    
+                    var clientPayload = span.Slice(i, lengthToRead).ToArray();
+                
                     Buffer.BlockCopy(packetHeaders, 0, totalPayload, 0, packetHeaders.Length);
                     Buffer.BlockCopy(packetIdBytes, 0, totalPayload, sizeof(ushort) * 3, packetIdBytes.Length);
-                    Buffer.BlockCopy(clientPayload.ToArray(), 0, totalPayload, writeOffset, clientPayload.Length);
-                    
-                    var packet = new Packet
-                    {
-                        Payload = totalPayload,
-                        PacketId = packetId
-                    };
-
-                    dictionary.TryAdd(packetId, packet);
-                    packets[packetId++] = packet;
-                    
-                    remainingLength -= lengthToRead;
+                    Buffer.BlockCopy(clientPayload, 0, totalPayload, writeOffset, clientPayload.Length);
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"startPos = {i}, lengthToRead {lengthToRead}, remaining data length {remainingLength}, total length = {data.Length}");
+                    throw;
+                }
+                
+                var packet = new Packet
+                {
+                    Payload = totalPayload,
+                    PacketId = packetId
+                };
+                
+                dictionary.TryAdd(packetId, packet);
+                
+                packetId++;
+                
+                remainingLength -= lengthToRead;
             }
-
+            
             return dictionary;
         }
 
