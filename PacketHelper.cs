@@ -10,11 +10,19 @@ namespace PBUdpTransport
             int mtu, 
             ushort sequenceId)
         {
-             var packetsNum = data.Length / (double)mtu;
-            var packetsNumRounded = (int)Math.Round(packetsNum, MidpointRounding.ToPositiveInfinity);
-            var totalPackets = packetsNumRounded + 1;
-            var packets = new Packet[totalPackets];
+              const int headersLength = 8;
+            
+            var packetsNumWoHeaders = data.Length / (double)mtu;
+            var packetsNumRounded = (int)Math.Round(packetsNumWoHeaders, MidpointRounding.ToPositiveInfinity);
 
+            var totalPacketsHeadersLength = packetsNumWoHeaders * headersLength;
+            
+            var packetNumWithHeaders = (data.Length + totalPacketsHeadersLength) / mtu;
+            var packetNumRoundedWithHeaders = (int)Math.Round(packetNumWithHeaders, MidpointRounding.ToPositiveInfinity);
+            
+            var totalPackets = packetNumRoundedWithHeaders + 1;
+            var packets = new Packet[totalPackets];
+ 
             var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0);
             //var lastPacket = CreateControlPacket(EPacketFlags.LastPacket, data.Length, sequenceId, (ushort)(totalPackets - 1));
             
@@ -32,29 +40,28 @@ namespace PBUdpTransport
 
             var dictionary = new ConcurrentDictionary<ushort, Packet>();
             dictionary.TryAdd(firstPacket.PacketId, firstPacket);
-            //dictionary.TryAdd(lastPacket.PacketId, lastPacket);
             // multiply by headers count including packet ID bytes size
             var writeOffset = sizeof(ushort) * 4; 
             
             var packetHeaders = byteWriter.Data;
             
             var remainingLength = data.Length;
-            
-            for (var i = 0; i < data.Length; i++)
+
+            for (var i = 0; i < data.Length + totalPacketsHeadersLength; i++)
             {
-                if (i % (data.Length / packetsNumRounded) == 0)
+                if (i % (data.Length + totalPacketsHeadersLength / packetsNumRounded) == 0)
                 {
-                    var lengthToRead = remainingLength < mtu ? remainingLength : mtu;
+                    var lengthToRead = remainingLength < mtu - headersLength ? remainingLength : mtu;
                
-                    var clientPayload = span.Slice(i, lengthToRead).ToArray();
+                    var clientPayload = span.Slice(i, lengthToRead - headersLength);
             
-                    var totalPayload = new byte[packetHeaders.Length + sizeof(ushort) + clientPayload.Length];
+                    var totalPayload = new byte[lengthToRead];
                     
                     var packetIdBytes = BitConverter.GetBytes(packetId);
                     
                     Buffer.BlockCopy(packetHeaders, 0, totalPayload, 0, packetHeaders.Length);
                     Buffer.BlockCopy(packetIdBytes, 0, totalPayload, sizeof(ushort) * 3, packetIdBytes.Length);
-                    Buffer.BlockCopy(clientPayload, 0, totalPayload, writeOffset, clientPayload.Length);
+                    Buffer.BlockCopy(clientPayload.ToArray(), 0, totalPayload, writeOffset, clientPayload.Length);
                     
                     var packet = new Packet
                     {
