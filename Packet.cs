@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace UdpTransport
+namespace PBUdpTransport
 {
     public class Packet
     {

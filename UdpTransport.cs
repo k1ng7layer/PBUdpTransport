@@ -5,8 +5,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using UdpTransport;
 
-namespace UdpTransport
+namespace PBUdpTransport
 {
     public class UdpTransport : IDisposable
     {
@@ -185,10 +186,9 @@ namespace UdpTransport
                                  i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
                                  i++)
                             {
-                            
-                                var hasPacket = transmission.Packets.TryGetValue(i, out var packet);
+                                transmission.Packets.TryGetValue(i, out var packet);
 
-                                if (packet.ResendTime <= DateTime.Now && !packet.HasAck)
+                                if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck)
                                 {
                                     packet.ResendTime = DateTime.Now.AddMilliseconds(100);
                 
@@ -239,7 +239,7 @@ namespace UdpTransport
 
                 while (_sendRawPacketsQueue.Count > 0 && maxSendTime > DateTime.Now)
                 {
-                    var hasPacket = _sendRawPacketsQueue.TryDequeue(out var packet);
+                    _sendRawPacketsQueue.TryDequeue(out var packet);
 
                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, packet.EndPoint);
                 }
@@ -260,7 +260,7 @@ namespace UdpTransport
                     {
                         while (_receivedRawPacketsQueue.Count > 0 && readTime > DateTime.Now)
                         {
-                            var hasRawPacket = _receivedRawPacketsQueue.TryDequeue(out var packet);
+                            _receivedRawPacketsQueue.TryDequeue(out var packet);
 
                             HandleRawPacket(packet);
                         }
@@ -270,7 +270,6 @@ namespace UdpTransport
                     catch (Exception e)
                     {
                         Console.WriteLine(e);
-                        continue;
                     }
                 }
             }
@@ -403,7 +402,7 @@ namespace UdpTransport
 
             if (hasTransmissions)
             {
-                transmissions.TryRemove(transmission.Id, out var trans);
+                transmissions.TryRemove(transmission.Id, out _);
             }
 
             _transportMessagesQueue.Enqueue(message);
@@ -411,7 +410,7 @@ namespace UdpTransport
         
         private void HandleAck(UdpTransmission transmission, ushort packetId)
         {
-            if(!TryGetSenderTransmission(transmission.Id, transmission.RemoteEndPoint, out var trans))
+            if(!TryGetSenderTransmission(transmission.Id, transmission.RemoteEndPoint, out _))
                 return;
 
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
@@ -430,7 +429,7 @@ namespace UdpTransport
             if (HasCompleteTransmission(transmission))
             {
                 var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
-                transmissionsTable.Remove(transmission.Id, out trans);
+                transmissionsTable.Remove(transmission.Id, out _);
                 transmission.Completed?.Invoke();
                 
                 return;
@@ -455,7 +454,7 @@ namespace UdpTransport
 
         private void SendAck(ushort transmissionId, IPEndPoint remoteEndpoint, Packet packet)
         {
-            var byteWriter = new ByteWriter(8);
+            var byteWriter = new ByteWriter();
             byteWriter.AddUshort((ushort)EProtocolType.UDP);
             byteWriter.AddUshort((ushort)EPacketFlags.Ack);
             byteWriter.AddUshort(transmissionId);

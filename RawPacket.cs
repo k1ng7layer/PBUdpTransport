@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace UdpTransport
+namespace PBUdpTransport
 {
     internal readonly struct RawPacket
     {

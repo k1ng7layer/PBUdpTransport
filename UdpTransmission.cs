@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 
-namespace UdpTransport
+namespace PBUdpTransport
 {
     internal class UdpTransmission
     {
