@@ -445,19 +445,18 @@ namespace UdpTransport
         {
             var messagePayload = new byte[transmission.ReceivedLenght + sizeof(ushort) * 2];
             var offset = 0;
-
             foreach (var packet in transmission.Packets.Values)
             {
-                if(packet.PacketId == transmission.Packets.Count - 1 || packet.PacketId == 0)
+                if(packet.PacketId == 0)
                     continue;
 
                 Buffer.BlockCopy(packet.Payload, 
                     8,
                     messagePayload,
                     offset, 
-                    packet.Count);
+                    packet.Count - 8);
                 
-                offset = packet.Count;
+                offset += packet.Count;
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
