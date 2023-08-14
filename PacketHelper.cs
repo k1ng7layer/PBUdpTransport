@@ -92,10 +92,15 @@ namespace PBUdpTransport
         
         public static int GetPacketSequenceSize(int messageLength, int mtu)
         {
-            var packetsNum = messageLength / (double)mtu;
-            var packetsNumRounded = (int)Math.Round(packetsNum, MidpointRounding.ToPositiveInfinity);
+            var packetsNumWoHeaders = messageLength / (double)mtu;
+            var packetsNumRounded = (int)Math.Round(packetsNumWoHeaders, MidpointRounding.ToPositiveInfinity);
 
-            return packetsNumRounded;
+            var totalPacketsHeadersLength = packetsNumRounded * 8;
+            
+            var packetNumWithHeaders = (messageLength + totalPacketsHeadersLength) / (double)mtu;
+            var packetNumRoundedWithHeaders = (int)Math.Round(packetNumWithHeaders, MidpointRounding.ToPositiveInfinity);
+            
+            return packetNumRoundedWithHeaders + 1;
         }
 
         public static ushort GenerateTransmissionId()
