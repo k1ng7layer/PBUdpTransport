@@ -107,11 +107,10 @@ namespace PBUdpTransport
             return taskSource.Task;
         }
         
-        private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint, Packet incomeFirstPacket)
+        private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint)
         {
-             var messageLength = NetworkMessageHelper.GetMessageLength(data);
-
-            Console.Out.WriteLineAsync($"messageLength = {messageLength}");
+            var messageLength = NetworkMessageHelper.GetMessageLength(data);
+             
             var id = NetworkMessageHelper.GetTransmissionId(data);
          
             //TODO:
@@ -123,7 +122,7 @@ namespace PBUdpTransport
             var hasTransmissionsTable =
                 _udpReceiverTransmissionsTable.TryGetValue(remoteEndPoint, out var transmissions);
             
-            SendAck(transmissionId, remoteEndPoint, incomeFirstPacket);
+            SendAck(transmissionId, remoteEndPoint, 0);
             
             if(hasTransmissionsTable && transmissions.ContainsKey(transmissionId))
                 return;
@@ -135,7 +134,9 @@ namespace PBUdpTransport
                 var packet = new Packet
                 {
                     PacketId = i,
-                    HasAck = i == 0
+                    HasAck = i == 0,
+                    ResendAttemptCount = _udpConfiguration.MaxPacketResendCount,
+                    ResendTime = DateTime.Now
                 };
                 
                 packets.TryAdd(i, packet);
@@ -335,12 +336,12 @@ namespace PBUdpTransport
                     if(!hasTransmission)
                         break;
                     
-                    SendAck(transmission.Id, ipEndpoint, incomePacket);
+                    SendAck(transmission.Id, ipEndpoint, packetId);
                     WritePacket(transmission, data, packetId, rawPacket.Count);
                     break;
                 case EPacketFlags.FirstPacket:
                     
-                    CreateTransmission(data, ipEndpoint, incomePacket);
+                    CreateTransmission(data, ipEndpoint);
                     break;
             }
         }
@@ -365,37 +366,17 @@ namespace PBUdpTransport
         
         private void WritePacket(UdpTransmission transmission, byte[] data, ushort packetId, int count)
         {
-            var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
-
-            // if (packetId < transmission.WindowLowerBoundIndex || packetId > windowUpperBound - 1)
-            // {
-            //     Console.WriteLine($"income packet with id {packetId} is out of window range");
-            //     return;
-            // }
-            
-            Console.Out.WriteLineAsync($"WritePacket with id = {packetId}");
-
             if (transmission.Packets.TryGetValue(packetId, out var packet))
             {
+                if(packet.HasAck)
+                    return;
+                
                 packet.Payload = data;
                 packet.Count = count;
+                packet.HasAck = true;
+                
+                transmission.ReceivedLenght += count;
             }
-            
-            // var packet = new Packet
-            // {
-            //     Payload = data,
-            //     PacketId = packetId,
-            //     ResendTime = DateTime.Now,
-            //     HasAck = false,
-            //     Count = count
-            // };
-        
-            var added = transmission.Packets.TryAdd(packetId, packet);
-
-            Console.WriteLine($"added = {added}");
-            packet.HasAck = true;
-
-            transmission.ReceivedLenght += count;
 
             if (packetId == transmission.SmallestPendingPacketIndex)
             {
@@ -482,13 +463,13 @@ namespace PBUdpTransport
             return true;
         }
 
-        private void SendAck(ushort transmissionId, IPEndPoint remoteEndpoint, Packet packet)
+        private void SendAck(ushort transmissionId, IPEndPoint remoteEndpoint, ushort packetId)
         {
             var byteWriter = new ByteWriter();
             byteWriter.AddUshort((ushort)EProtocolType.UDP);
             byteWriter.AddUshort((ushort)EPacketFlags.Ack);
             byteWriter.AddUshort(transmissionId);
-            byteWriter.AddUshort(packet.PacketId);
+            byteWriter.AddUshort(packetId);
             
             var rawPacket = new RawPacket(remoteEndpoint, byteWriter.Data, byteWriter.WritePos);
        
