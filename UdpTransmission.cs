@@ -15,5 +15,6 @@ namespace PBUdpTransport
         public Action Completed { get; set; }
         public int ReceivedLenght { get; set; }
         public bool Reliable { get; set; }
+        public ushort LasPacketId { get; set; }
     }
 }

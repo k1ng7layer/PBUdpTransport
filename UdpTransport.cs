@@ -68,7 +68,8 @@ namespace PBUdpTransport
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
-                Id = sequenceId
+                Id = sequenceId,
+                LasPacketId = (ushort)(packets.Count - 1)
             };
             
             
@@ -148,6 +149,7 @@ namespace PBUdpTransport
                 SmallestPendingPacketIndex = 0,
                 Packets = packets,
                 RemoteEndPoint = remoteEndPoint,
+                LasPacketId = (ushort)(packetSequenceLength - 1)
             };
 
             ConcurrentDictionary<ushort, UdpTransmission> clientTransmissionTable;
@@ -496,7 +498,7 @@ namespace PBUdpTransport
         private void ShiftTransmissionWindow(UdpTransmission transmission)
         {
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
-            var lastPacketIndex = transmission.Packets.Count - 1;
+            var lastPacketIndex = transmission.LasPacketId;
 
             for (var i = (ushort)(transmission.SmallestPendingPacketIndex + 1);
                  i < windowUpperBound + 1 && i <= lastPacketIndex; 
