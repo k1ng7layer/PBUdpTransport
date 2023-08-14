@@ -108,7 +108,9 @@ namespace PBUdpTransport
         
         private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint, Packet incomeFirstPacket)
         {
-            var messageLength = NetworkMessageHelper.GetMessageLength(data);
+             var messageLength = NetworkMessageHelper.GetMessageLength(data);
+
+            Console.Out.WriteLineAsync($"messageLength = {messageLength}");
             var id = NetworkMessageHelper.GetTransmissionId(data);
          
             //TODO:
@@ -124,13 +126,27 @@ namespace PBUdpTransport
             
             if(hasTransmissionsTable && transmissions.ContainsKey(transmissionId))
                 return;
+
+            var packets = new ConcurrentDictionary<ushort, Packet>();
+
+            for (ushort i = 0; i < packetSequenceLength; i++)
+            {
+                var packet = new Packet
+                {
+                    PacketId = i,
+                    HasAck = i == 0
+                };
+                
+                packets.TryAdd(i, packet);
+            }
+            
             var transmission = new UdpTransmission()
             {
                 Id = id,
                 WindowSize = windowSize,
                 WindowLowerBoundIndex = 0,
                 SmallestPendingPacketIndex = 0,
-                Packets = new ConcurrentDictionary<ushort, Packet>(),
+                Packets = packets,
                 RemoteEndPoint = remoteEndPoint,
             };
 
@@ -146,6 +162,8 @@ namespace PBUdpTransport
             }
             
             clientTransmissionTable.TryAdd(transmissionId, transmission);
+            
+            ShiftTransmissionWindow(transmission);
         }
         
         private bool TryGetSenderTransmission(ushort transmissionId, IPEndPoint endPoint, out UdpTransmission transmission)
@@ -347,22 +365,32 @@ namespace PBUdpTransport
         {
             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
 
-            if (packetId < transmission.WindowLowerBoundIndex || packetId > windowUpperBound - 1)
+            // if (packetId < transmission.WindowLowerBoundIndex || packetId > windowUpperBound - 1)
+            // {
+            //     Console.WriteLine($"income packet with id {packetId} is out of window range");
+            //     return;
+            // }
+            
+            Console.Out.WriteLineAsync($"WritePacket with id = {packetId}");
+
+            if (transmission.Packets.TryGetValue(packetId, out var packet))
             {
-                Console.WriteLine($"income packet with id {packetId} is out of window range");
-                return;
+                packet.Payload = data;
+                packet.Count = count;
             }
             
-            var packet = new Packet
-            {
-                Payload = data,
-                PacketId = packetId,
-                ResendTime = DateTime.Now,
-                HasAck = false,
-                Count = count
-            };
+            // var packet = new Packet
+            // {
+            //     Payload = data,
+            //     PacketId = packetId,
+            //     ResendTime = DateTime.Now,
+            //     HasAck = false,
+            //     Count = count
+            // };
+        
+            var added = transmission.Packets.TryAdd(packetId, packet);
 
-            transmission.Packets.TryAdd(packetId, packet);
+            Console.WriteLine($"added = {added}");
             packet.HasAck = true;
 
             transmission.ReceivedLenght += count;
