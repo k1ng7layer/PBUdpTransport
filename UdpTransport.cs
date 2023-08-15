@@ -27,6 +27,7 @@ namespace PBUdpTransport
         private readonly ConcurrentQueue<TransportMessage> _transportMessagesQueue = new();
         private readonly ConcurrentQueue<RawPacket> _receivedRawPacketsQueue = new();
         private readonly ConcurrentQueue<RawPacket> _sendRawPacketsQueue = new();
+        
         private ushort _transmissionsCount;
         private bool _running;
 
