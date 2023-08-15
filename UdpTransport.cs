@@ -313,7 +313,10 @@ namespace PBUdpTransport
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
             
             UdpTransmission transmission;
-            var hasTransmission = packetFlags == EPacketFlags.Ack ? TryGetSenderTransmission(transmissionId, ipEndpoint, out transmission) :  TryGetReceiverTransmission(transmissionId, ipEndpoint, out transmission);
+            
+            var hasTransmission = packetFlags == EPacketFlags.Ack ? 
+                TryGetSenderTransmission(transmissionId, ipEndpoint, out transmission) : 
+                TryGetReceiverTransmission(transmissionId, ipEndpoint, out transmission);
 
             switch (packetFlags)
             {
