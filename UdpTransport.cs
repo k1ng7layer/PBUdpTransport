@@ -13,6 +13,10 @@ namespace PBUdpTransport
     {
         private const int READ_TIME = 10;
         private const int MAX_SEND_TIME = 50;
+        private const int SEND_DELAY = 5;
+        private const int PACKET_RESENT_TIME = 100;
+        private const int PACKET_MAX_SEND_TIME = 300;
+        private const int UDP_HEADERS_LENGTH = 8;
         
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly IUdpConfiguration _udpConfiguration;
@@ -224,7 +228,7 @@ namespace PBUdpTransport
                     {
                         foreach (var transmission in sendTransmissionsTable.Values)
                         {
-                            var maxSendTime = DateTime.Now.AddMilliseconds(300);
+                            var maxSendTime = DateTime.Now.AddMilliseconds(PACKET_MAX_SEND_TIME);
 
                             var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
             
@@ -236,12 +240,13 @@ namespace PBUdpTransport
 
                                 if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck)
                                 {
-                                    packet.ResendTime = DateTime.Now.AddMilliseconds(100);
+                                    packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
                 
                                     packet.ResendAttemptCount++;
                                     
                                     await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
-                                    await Task.Delay(5);
+                                    
+                                    await Task.Delay(SEND_DELAY);
                                 }
                             }
                         }
@@ -419,10 +424,10 @@ namespace PBUdpTransport
                     continue;
 
                 Buffer.BlockCopy(packet.Payload, 
-                    8,
+                    UDP_HEADERS_LENGTH,
                     messagePayload,
                     offset, 
-                    packet.Count - 8);
+                    packet.Count - UDP_HEADERS_LENGTH);
                 
                 offset += packet.Count;
             }
