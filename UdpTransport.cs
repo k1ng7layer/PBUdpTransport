@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using PBUdpTransport.Config;
+using PBUdpTransport.Config.Impl;
 using PBUdpTransport.Helpers;
 using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
@@ -42,6 +43,15 @@ namespace PBUdpTransport
             
             _localEndPoint = localEndPoint;
             _udpConfiguration = udpConfiguration;
+        }
+        
+        public UdpTransport(
+            EndPoint localEndPoint)
+        {
+            _socketReceiver = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            
+            _localEndPoint = localEndPoint;
+            _udpConfiguration = new DefaultUdpConfiguration();
         }
 
         public void Start()
