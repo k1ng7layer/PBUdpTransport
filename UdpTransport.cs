@@ -232,12 +232,13 @@ namespace PBUdpTransport
 
         private async Task ProcessSocketRawReceive()
         {
-            var data = new byte[1032];
             var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
             try
             {
                 while (_running)
                 {
+                    var data = new byte[_udpConfiguration.ReceiveBufferSize];
+                    
                     var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
                     
                     var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data, receiveFromResult.ReceivedBytes);

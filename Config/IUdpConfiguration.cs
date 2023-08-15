@@ -4,5 +4,6 @@
     {
         int MTU { get; set; }
         int MaxPacketResendCount { get; set; }
+        int ReceiveBufferSize { get; set; }
     }
 }
