@@ -23,7 +23,7 @@ namespace PBUdpTransport
         private readonly ConcurrentQueue<TransportMessage> _transportMessagesQueue = new();
         private readonly ConcurrentQueue<RawPacket> _receivedRawPacketsQueue = new();
         private readonly ConcurrentQueue<RawPacket> _sendRawPacketsQueue = new();
-        private int _transmissionsCount;
+        private ushort _transmissionsCount;
         private bool _running;
 
         public UdpTransport(
@@ -57,7 +57,7 @@ namespace PBUdpTransport
         
         public Task SendAsync(byte[] data, IPEndPoint remoteEndpoint, bool reliable)
         {
-            var sequenceId = (ushort)++_transmissionsCount;
+            var sequenceId = ++_transmissionsCount;
             
             var packets = PacketHelper.CreatePacketSequence(data, _udpConfiguration.MTU, sequenceId);
             
@@ -71,7 +71,6 @@ namespace PBUdpTransport
                 Id = sequenceId,
                 LasPacketId = (ushort)(packets.Count - 1)
             };
-            
             
             var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -89,6 +88,32 @@ namespace PBUdpTransport
             transmissionTable.TryAdd(sequenceId, transmission);
 
             return taskSource.Task;
+        }
+
+        public void Send(byte[] data, IPEndPoint remoteEndpoint, bool reliable)
+        {
+            var sequenceId = ++_transmissionsCount;
+            
+            var packets = PacketHelper.CreatePacketSequence(data, _udpConfiguration.MTU, sequenceId);
+            
+            var transmission = new UdpTransmission
+            {
+                Packets = packets,
+                WindowSize = 2,
+                SmallestPendingPacketIndex = 0,
+                RemoteEndPoint = remoteEndpoint,
+                Reliable = reliable,
+                Id = sequenceId,
+                LasPacketId = (ushort)(packets.Count - 1)
+            };
+            
+            if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
+            {
+                transmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
+                _udpSenderTransmissionsTable.TryAdd(remoteEndpoint, transmissionTable);
+            }
+            
+            transmissionTable.TryAdd(sequenceId, transmission);
         }
 
         public Task<TransportMessage> ReceiveAsync()
