@@ -312,14 +312,6 @@ namespace PBUdpTransport
             var packetId = NetworkMessageHelper.GetPacketId(data);
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
             
-            var incomePacket = new Packet()
-            {
-                Payload = data,
-                PacketId = packetId,
-                ResendAttemptCount = _udpConfiguration.MaxPacketResendCount,
-                ResendTime = DateTime.Now
-            };
-
             UdpTransmission transmission;
             var hasTransmission = packetFlags == EPacketFlags.Ack ? TryGetSenderTransmission(transmissionId, ipEndpoint, out transmission) :  TryGetReceiverTransmission(transmissionId, ipEndpoint, out transmission);
 
@@ -341,7 +333,6 @@ namespace PBUdpTransport
                     WritePacket(transmission, data, packetId, rawPacket.Count);
                     break;
                 case EPacketFlags.FirstPacket:
-                    
                     CreateTransmission(data, ipEndpoint);
                     break;
             }
