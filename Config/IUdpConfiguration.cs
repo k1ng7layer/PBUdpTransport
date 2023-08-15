@@ -1,4 +1,4 @@
-﻿namespace UdpTransport
+﻿namespace PBUdpTransport.Config
 {
     public interface IUdpConfiguration
     {

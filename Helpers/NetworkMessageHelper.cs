@@ -1,6 +1,7 @@
 ﻿using System;
+using PBUdpTransport.Utils;
 
-namespace UdpTransport
+namespace PBUdpTransport.Helpers
 {
     internal static class NetworkMessageHelper
     {
@@ -9,7 +10,6 @@ namespace UdpTransport
             var byteSpan = new Span<byte>(data);
             var flagsSpan = byteSpan.Slice(2, 2);
             var flagsInt = BitConverter.ToUInt16(flagsSpan);
-            var flagggs = (EPacketFlags)flagsInt;
             if(!Enum.TryParse(flagsInt.ToString(), out EPacketFlags flags))
             {
                 Console.WriteLine("inavlid enum type");

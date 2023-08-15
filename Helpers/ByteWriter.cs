@@ -2,7 +2,7 @@
 using System.Numerics;
 using System.Text;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Helpers
 {
     internal class ByteWriter
     {

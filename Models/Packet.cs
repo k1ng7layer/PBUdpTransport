@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Models
 {
-    public class Packet
+    internal class Packet
     {
         public byte[] Payload;
         public ushort PacketId;

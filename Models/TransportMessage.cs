@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Models
 {
     public class TransportMessage
     {

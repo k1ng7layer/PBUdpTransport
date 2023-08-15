@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Models
 {
     internal readonly struct RawPacket
     {

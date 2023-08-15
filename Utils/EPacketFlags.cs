@@ -1,4 +1,4 @@
-﻿namespace UdpTransport
+﻿namespace PBUdpTransport.Utils
 {
     internal enum EPacketFlags : ushort
     {

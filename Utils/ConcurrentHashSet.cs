@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Utils
 {
-    public class ConcurrentHashSet<T>
+    internal class ConcurrentHashSet<T>
     {
         private readonly HashSet<T> _hashSet = new();
         private readonly object _locker = new();

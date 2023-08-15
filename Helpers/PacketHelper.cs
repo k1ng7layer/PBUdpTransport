@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using UdpTransport;
+using PBUdpTransport.Models;
+using PBUdpTransport.Utils;
 
-namespace PBUdpTransport
+namespace PBUdpTransport.Helpers
 {
     internal static class PacketHelper
     {

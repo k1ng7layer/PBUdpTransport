@@ -1,4 +1,4 @@
-﻿namespace UdpTransport.Impl
+﻿namespace PBUdpTransport.Config.Impl
 {
     public class DefaultUdpConfiguration : IUdpConfiguration
     {

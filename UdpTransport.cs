@@ -5,7 +5,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using UdpTransport;
+using PBUdpTransport.Config;
+using PBUdpTransport.Helpers;
+using PBUdpTransport.Models;
+using PBUdpTransport.Utils;
 
 namespace PBUdpTransport
 {
