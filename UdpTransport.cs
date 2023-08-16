@@ -21,6 +21,7 @@ namespace PBUdpTransport
         private const int PACKET_RESENT_TIME = 100;
         private const int PACKET_MAX_SEND_TIME = 300;
         private const int UDP_HEADERS_LENGTH = 8;
+        private const double TRANSMISSION_TIMEOUT = 300;
         
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly IUdpConfiguration _udpConfiguration;
@@ -32,6 +33,8 @@ namespace PBUdpTransport
         private readonly ConcurrentQueue<RawPacket> _receivedRawPacketsQueue = new();
         private readonly ConcurrentQueue<RawPacket> _sendRawPacketsQueue = new();
         
+        private EventHandler<CompletedTransmissionArgs> _receiveEventHandler;
+
         private ushort _transmissionsCount;
         private bool _running;
 
@@ -63,6 +66,7 @@ namespace PBUdpTransport
             Task.Run(async () => await ProcessSocketRawSend(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsReceiveQueue(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsSend(), _cancellationTokenSource.Token);
+            Task.Run(ProcessTimeOut, _cancellationTokenSource.Token);
         }
 
         public void Stop()
@@ -91,12 +95,16 @@ namespace PBUdpTransport
             };
             
             var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            transmission.Completed += () =>
-            {
-                taskSource.SetResult(true);
-            };
+            EventHandler<CompletedTransmissionArgs> callback = null;
             
+            callback = (_, args) =>
+            {
+                transmission.Completed -= callback;
+                taskSource.SetResult(args.IsSuccessfullyCompleted);
+            };
+
+            transmission.Completed += callback;
+
             if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
             {
                 transmissionTable = new ConcurrentDictionary<ushort, UdpTransmission>();
@@ -193,7 +201,8 @@ namespace PBUdpTransport
                 SmallestPendingPacketIndex = 0,
                 Packets = packets,
                 RemoteEndPoint = remoteEndPoint,
-                LasPacketId = (ushort)(packetSequenceLength - 1)
+                LasPacketId = (ushort)(packetSequenceLength - 1),
+                LastDatagramReceiveTime = DateTime.Now
             };
 
             ConcurrentDictionary<ushort, UdpTransmission> clientTransmissionTable;
@@ -346,6 +355,34 @@ namespace PBUdpTransport
             }
         }
 
+        private void ProcessTimeOut()
+        {
+            while (_running)
+            {
+                var sendTransmissionsTables = _udpSenderTransmissionsTable;
+
+                foreach (var sendTransmissionsTable in sendTransmissionsTables.Values)
+                {
+                    foreach (var transmission in sendTransmissionsTable.Values)
+                    {
+                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                            TRANSMISSION_TIMEOUT)
+                        {
+                            StopTransmission(transmission);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void StopTransmission(UdpTransmission transmission)
+        {
+            if(_udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
+            {
+                transmissions.TryRemove(transmission.Id, out var trans);
+            }
+        }
+
         private void HandleRawPacket(RawPacket rawPacket)
         {
             var data = rawPacket.Payload;
@@ -415,6 +452,7 @@ namespace PBUdpTransport
                 packet.HasAck = true;
                 
                 transmission.ReceivedLenght += count;
+                transmission.LastDatagramReceiveTime = DateTime.Now;
             }
 
             if (packetId == transmission.SmallestPendingPacketIndex)
@@ -455,7 +493,8 @@ namespace PBUdpTransport
                 transmissions.TryRemove(transmission.Id, out _);
             }
 
-            _transportMessagesQueue.Enqueue(message);
+            transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(message, true));
+            //_transportMessagesQueue.Enqueue(message);
         }
         
         private void HandleAck(UdpTransmission transmission, ushort packetId)
@@ -480,7 +519,7 @@ namespace PBUdpTransport
             {
                 var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
                 transmissionsTable.Remove(transmission.Id, out _);
-                transmission.Completed?.Invoke();
+                transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
                 
                 return;
             }
