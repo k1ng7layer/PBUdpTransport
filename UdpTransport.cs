@@ -252,7 +252,7 @@ namespace PBUdpTransport
                             {
                                 transmission.Packets.TryGetValue(i, out var packet);
 
-                                if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck)
+                                if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck && packet.ResendAttemptCount < _udpConfiguration.MaxPacketResendCount)
                                 {
                                     packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
                 
