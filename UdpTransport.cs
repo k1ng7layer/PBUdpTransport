@@ -146,14 +146,17 @@ namespace PBUdpTransport
         { 
             var taskSource = new TaskCompletionSource<TransportMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            while (true)
+            _receiveEventHandler = (sender, args) =>
             {
-                if (_transportMessagesQueue.TryDequeue(out var message))
+                if (args.IsSuccessfullyCompleted)
                 {
-                    taskSource.SetResult(message);
-                    break;
+                    taskSource.SetResult(args.TransportMessage);
                 }
-            }
+                else
+                {
+                    taskSource.SetCanceled();
+                }
+            };
 
             return taskSource.Task;
         }
@@ -369,6 +372,9 @@ namespace PBUdpTransport
                             TRANSMISSION_TIMEOUT)
                         {
                             StopTransmission(transmission);
+                            
+                            _receiveEventHandler?.Invoke(this, 
+                                new CompletedTransmissionArgs(null, false));
                         }
                     }
                 }
