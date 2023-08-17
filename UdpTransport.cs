@@ -29,7 +29,6 @@ namespace PBUdpTransport
         private readonly EndPoint _localEndPoint;
         private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpSenderTransmissionsTable = new();
         private readonly ConcurrentDictionary<IPEndPoint, ConcurrentDictionary<ushort, UdpTransmission>> _udpReceiverTransmissionsTable = new();
-        private readonly ConcurrentQueue<TransportMessage> _transportMessagesQueue = new();
         private readonly ConcurrentQueue<RawPacket> _receivedRawPacketsQueue = new();
         private readonly ConcurrentQueue<RawPacket> _sendRawPacketsQueue = new();
         
