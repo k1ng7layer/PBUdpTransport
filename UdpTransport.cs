@@ -510,7 +510,7 @@ namespace PBUdpTransport
                 ShiftTransmissionWindow(transmission);
             }
             
-            if (HasCompleteTransmission(transmission))
+            if (transmission.SmallestPendingPacketIndex == transmission.LasPacketId)
             {
                 PrepareMessage(transmission);
             }
@@ -566,7 +566,7 @@ namespace PBUdpTransport
             packet.HasAck = true;
             transmission.LastDatagramReceiveTime = DateTime.Now;
             
-            if (HasCompleteTransmission(transmission))
+            if (transmission.SmallestPendingPacketIndex == transmission.LasPacketId)
             {
                 var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
                 transmissionsTable.Remove(transmission.Id, out _);
