@@ -9,27 +9,13 @@ namespace PBUdpTransport.Helpers
     {
         public static ConcurrentDictionary<ushort, Packet> CreatePacketSequence(byte[] data, 
             int mtu, 
-            ushort sequenceId)
+            ushort sequenceId,
+            ushort windowSize)
         {
             const int headersLength = 8;
-            
-            var packetsNumWoHeaders = data.Length / (double)mtu;
-            var packetsNumRounded = (int)Math.Round(packetsNumWoHeaders, MidpointRounding.ToPositiveInfinity);
 
-            var totalPacketsHeadersLength = packetsNumRounded * headersLength;
-            
-            var packetNumWithHeaders = (data.Length + totalPacketsHeadersLength) / (double)mtu;
-            var packetNumRoundedWithHeaders = (int)Math.Round(packetNumWithHeaders, MidpointRounding.ToPositiveInfinity);
-            
-            var totalPackets = packetNumRoundedWithHeaders + 1;
-            var packets = new Packet[totalPackets];
- 
-            var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0);
-            //var lastPacket = CreateControlPacket(EPacketFlags.LastPacket, data.Length, sequenceId, (ushort)(totalPackets - 1));
-            
-            packets[0] = firstPacket;
-            //packets[totalPackets - 1] = lastPacket;
-            
+            var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0, windowSize);
+
             ushort packetId = 1;
             var span = new Span<byte>(data);
 
@@ -113,14 +99,15 @@ namespace PBUdpTransport.Helpers
         public static Packet CreateControlPacket(
             EPacketFlags packetFlags, 
             int messageLength,
-            ushort transmissionId, ushort packetId)
+            ushort transmissionId, ushort packetId, ushort windowSize)
         {
-            var byteWriter = new ByteWriter(12);  
+            var byteWriter = new ByteWriter(14);  
             byteWriter.AddUshort((ushort)EProtocolType.UDP);
             byteWriter.AddUshort((ushort)packetFlags);
             byteWriter.AddUshort(transmissionId);
             byteWriter.AddUshort(packetId);
             byteWriter.AddInt(messageLength);
+            byteWriter.AddUshort(windowSize);
 
             var packet = new Packet()
             {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Net;
+using PBUdpTransport.Utils;
 
 namespace PBUdpTransport.Models
 {
@@ -12,9 +13,10 @@ namespace PBUdpTransport.Models
         public ushort WindowLowerBoundIndex { get; set; }
         public ushort WindowSize { get; set; }
         public ushort SmallestPendingPacketIndex { get; set; }
-        public Action Completed { get; set; }
+        public EventHandler<CompletedTransmissionArgs> Completed { get; set; }
         public int ReceivedLenght { get; set; }
         public bool Reliable { get; set; }
         public ushort LasPacketId { get; set; }
+        public DateTime LastDatagramReceiveTime { get; set; }
     }
 }
