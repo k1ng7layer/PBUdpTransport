@@ -313,6 +313,7 @@ namespace PBUdpTransport
             }
             catch (Exception e)
             {
+                _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(null, false));
                 Console.WriteLine(e);
                 throw;
             }
