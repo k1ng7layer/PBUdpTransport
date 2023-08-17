@@ -564,6 +564,7 @@ namespace PBUdpTransport
             var packet = transmission.Packets[packetId];
             
             packet.HasAck = true;
+            transmission.LastDatagramReceiveTime = DateTime.Now;
             
             if (HasCompleteTransmission(transmission))
             {
