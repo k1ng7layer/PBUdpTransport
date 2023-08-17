@@ -298,11 +298,12 @@ namespace PBUdpTransport
 
         private async Task ProcessSocketRawReceive()
         {
-            var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
             try
             {
                 while (_running)
                 {
+                    var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
+                    
                     var data = new byte[_udpConfiguration.ReceiveBufferSize];
                     
                     var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
