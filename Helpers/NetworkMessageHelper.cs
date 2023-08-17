@@ -54,7 +54,7 @@ namespace PBUdpTransport.Helpers
         {
             //TODO:
             var byteSpan = new Span<byte>(data);
-            var lengthSpan = byteSpan.Slice(12, 4);
+            var lengthSpan = byteSpan.Slice(12, 2);
 
             return BitConverter.ToUInt16(lengthSpan);
         }

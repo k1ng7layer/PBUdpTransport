@@ -80,12 +80,15 @@ namespace PBUdpTransport
         {
             var sequenceId = ++_transmissionsCount;
             
-            var packets = PacketHelper.CreatePacketSequence(data, _udpConfiguration.MTU, sequenceId);
+            var packets = PacketHelper.CreatePacketSequence(
+                data, 
+                _udpConfiguration.MTU, sequenceId, 
+                _udpConfiguration.TransmissionWindowSize);
             
             var transmission = new UdpTransmission
             {
                 Packets = packets,
-                WindowSize = 2,
+                WindowSize = _udpConfiguration.TransmissionWindowSize,
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
@@ -119,7 +122,11 @@ namespace PBUdpTransport
         {
             var sequenceId = ++_transmissionsCount;
             
-            var packets = PacketHelper.CreatePacketSequence(data, _udpConfiguration.MTU, sequenceId);
+            var packets = PacketHelper.CreatePacketSequence(
+                data, 
+                _udpConfiguration.MTU, 
+                sequenceId, 
+                _udpConfiguration.TransmissionWindowSize);
             
             var transmission = new UdpTransmission
             {
@@ -168,7 +175,8 @@ namespace PBUdpTransport
             var id = NetworkMessageHelper.GetTransmissionId(data);
          
             //TODO:
-            ushort windowSize = 2;
+            var windowSize = NetworkMessageHelper.GetWindowSize(data);
+            
             var packetSequenceLength = PacketHelper.GetPacketSequenceSize(messageLength, _udpConfiguration.MTU);
 
             var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
