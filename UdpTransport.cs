@@ -374,7 +374,7 @@ namespace PBUdpTransport
             while (_running)
             {
                 var sendTransmissionsTables = _udpSenderTransmissionsTable;
-
+                
                 foreach (var sendTransmissionsTable in sendTransmissionsTables.Values)
                 {
                     foreach (var transmission in sendTransmissionsTable.Values)
@@ -382,7 +382,23 @@ namespace PBUdpTransport
                         if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
                             TRANSMISSION_TIMEOUT)
                         {
-                            StopTransmission(transmission);
+                            StopSenderTransmission(transmission);
+                            
+                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                        }
+                    }
+                }
+                
+                var sendersTransmissionsTables = _udpReceiverTransmissionsTable;
+                
+                foreach (var sendTransmissionsTable in sendersTransmissionsTables.Values)
+                {
+                    foreach (var transmission in sendTransmissionsTable.Values)
+                    {
+                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                            TRANSMISSION_TIMEOUT)
+                        {
+                            StopReceiverTransmission(transmission);
                             
                             transmission.Completed(this, new CompletedTransmissionArgs(null, false));
                         }
@@ -391,9 +407,17 @@ namespace PBUdpTransport
             }
         }
 
-        private void StopTransmission(UdpTransmission transmission)
+        private void StopReceiverTransmission(UdpTransmission transmission)
         {
             if(_udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
+            {
+                transmissions.TryRemove(transmission.Id, out var trans);
+            }
+        }
+        
+        private void StopSenderTransmission(UdpTransmission transmission)
+        {
+            if(_udpSenderTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
             {
                 transmissions.TryRemove(transmission.Id, out var trans);
             }
