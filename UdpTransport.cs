@@ -261,17 +261,26 @@ namespace PBUdpTransport
                                  i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
                                  i++)
                             {
-                                transmission.Packets.TryGetValue(i, out var packet);
-
-                                if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck && packet.ResendAttemptCount < _udpConfiguration.MaxPacketResendCount)
+                                try
                                 {
-                                    packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
+                                    transmission.Packets.TryGetValue(i, out var packet);
+
+                                    if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck && packet.ResendAttemptCount < _udpConfiguration.MaxPacketResendCount)
+                                    {
+                                        packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
                 
-                                    packet.ResendAttemptCount++;
+                                        packet.ResendAttemptCount++;
                                     
-                                    await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
+                                        await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
                                     
-                                    await Task.Delay(SEND_DELAY);
+                                        await Task.Delay(SEND_DELAY);
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
+                                    Console.WriteLine(e);
+                                    throw;
                                 }
                             }
                         }
@@ -280,6 +289,7 @@ namespace PBUdpTransport
             }
             catch (Exception e)
             {
+                
                 Console.WriteLine(e);
                 throw;
             }
