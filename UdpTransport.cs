@@ -129,7 +129,8 @@ namespace PBUdpTransport
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
                 Id = sequenceId,
-                LasPacketId = (ushort)(packets.Count - 1)
+                LasPacketId = (ushort)(packets.Count - 1),
+                LastDatagramReceiveTime = DateTime.Now
             };
             
             if (!_udpSenderTransmissionsTable.TryGetValue(remoteEndpoint, out var transmissionTable))
@@ -383,8 +384,7 @@ namespace PBUdpTransport
                         {
                             StopTransmission(transmission);
                             
-                            _receiveEventHandler?.Invoke(this, 
-                                new CompletedTransmissionArgs(null, false));
+                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
                         }
                     }
                 }
