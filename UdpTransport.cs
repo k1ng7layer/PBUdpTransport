@@ -498,7 +498,7 @@ namespace PBUdpTransport
                 transmissions.TryRemove(transmission.Id, out _);
             }
 
-            transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(message, true));
+            _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(message, true));
             //_transportMessagesQueue.Enqueue(message);
         }
         
