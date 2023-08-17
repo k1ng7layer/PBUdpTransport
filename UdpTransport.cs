@@ -93,7 +93,8 @@ namespace PBUdpTransport
                 RemoteEndPoint = remoteEndpoint,
                 Reliable = reliable,
                 Id = sequenceId,
-                LasPacketId = (ushort)(packets.Count - 1)
+                LasPacketId = (ushort)(packets.Count - 1),
+                LastDatagramReceiveTime = DateTime.Now
             };
             
             var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
