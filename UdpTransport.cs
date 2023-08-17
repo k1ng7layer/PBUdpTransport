@@ -21,7 +21,7 @@ namespace PBUdpTransport
         private const int PACKET_RESENT_TIME = 100;
         private const int PACKET_MAX_SEND_TIME = 300;
         private const int UDP_HEADERS_LENGTH = 8;
-        private const double TRANSMISSION_TIMEOUT = 300;
+        private const double TRANSMISSION_TIMEOUT = 400;
         
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly IUdpConfiguration _udpConfiguration;
