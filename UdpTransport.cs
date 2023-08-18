@@ -518,7 +518,7 @@ namespace PBUdpTransport
 
         private void PrepareMessage(UdpTransmission transmission)
         {
-            var messagePayload = new byte[transmission.ReceivedLenght + sizeof(ushort) * 2];
+            var messagePayload = new byte[transmission.ReceivedLenght - UDP_HEADERS_LENGTH * (transmission.Packets.Count - 1)];
             var offset = 0;
             foreach (var packet in transmission.Packets.Values)
             {
@@ -531,7 +531,7 @@ namespace PBUdpTransport
                     offset, 
                     packet.Count - UDP_HEADERS_LENGTH);
                 
-                offset += packet.Count;
+                offset += packet.Count - UDP_HEADERS_LENGTH;
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
