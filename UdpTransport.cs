@@ -389,12 +389,22 @@ namespace PBUdpTransport
                 {
                     foreach (var transmission in sendTransmissionsTable.Values)
                     {
-                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                            TRANSMISSION_TIMEOUT)
+                        try
                         {
-                            StopSenderTransmission(transmission);
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
+                            {
+                                StopSenderTransmission(transmission);
                             
-                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+
+                                throw new SocketException(10060);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            continue;
                         }
                     }
                 }
@@ -405,12 +415,21 @@ namespace PBUdpTransport
                 {
                     foreach (var transmission in sendTransmissionsTable.Values)
                     {
-                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                            TRANSMISSION_TIMEOUT)
+                        try
                         {
-                            StopReceiverTransmission(transmission);
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
+                            {
+                                StopReceiverTransmission(transmission);
                             
-                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                throw new SocketException(10060);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            continue;
                         }
                     }
                 }
@@ -510,7 +529,7 @@ namespace PBUdpTransport
                 ShiftTransmissionWindow(transmission);
             }
             
-            if (HasCompleteTransmission(transmission))
+            if (transmission.SmallestPendingPacketIndex == transmission.LasPacketId)
             {
                 PrepareMessage(transmission);
             }
@@ -518,7 +537,7 @@ namespace PBUdpTransport
 
         private void PrepareMessage(UdpTransmission transmission)
         {
-            var messagePayload = new byte[transmission.ReceivedLenght + sizeof(ushort) * 2];
+            var messagePayload = new byte[transmission.ReceivedLenght - UDP_HEADERS_LENGTH * (transmission.Packets.Count - 1)];
             var offset = 0;
             foreach (var packet in transmission.Packets.Values)
             {
@@ -531,7 +550,7 @@ namespace PBUdpTransport
                     offset, 
                     packet.Count - UDP_HEADERS_LENGTH);
                 
-                offset += packet.Count;
+                offset += packet.Count - UDP_HEADERS_LENGTH;
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
@@ -566,7 +585,7 @@ namespace PBUdpTransport
             packet.HasAck = true;
             transmission.LastDatagramReceiveTime = DateTime.Now;
             
-            if (HasCompleteTransmission(transmission))
+            if (transmission.SmallestPendingPacketIndex == transmission.LasPacketId)
             {
                 var transmissionsTable = _udpSenderTransmissionsTable[transmission.RemoteEndPoint];
                 transmissionsTable.Remove(transmission.Id, out _);
