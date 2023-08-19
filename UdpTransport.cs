@@ -72,12 +72,19 @@ namespace PBUdpTransport
         {
             _running = false;
             
+            _udpReceiverTransmissionsTable.Clear();
+            _udpSenderTransmissionsTable.Clear();
+            _receivedRawPacketsQueue.Clear();
+            _sendRawPacketsQueue.Clear();
             _cancellationTokenSource.Cancel();
             _socketReceiver.Close();
         }
         
         public Task SendAsync(byte[] data, IPEndPoint remoteEndpoint, bool reliable)
         {
+            if (!_running)
+                throw new Exception($"[{nameof(UdpTransport)}] you must first call the start method");
+            
             var sequenceId = ++_transmissionsCount;
             
             var packets = PacketHelper.CreatePacketSequence(
@@ -151,7 +158,10 @@ namespace PBUdpTransport
         }
 
         public Task<TransportMessage> ReceiveAsync()
-        { 
+        {
+            if (!_running)
+                throw new Exception($"[{nameof(UdpTransport)}] you must first call the start method");
+            
             var taskSource = new TaskCompletionSource<TransportMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _receiveEventHandler = (sender, args) =>
