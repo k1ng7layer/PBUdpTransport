@@ -389,12 +389,22 @@ namespace PBUdpTransport
                 {
                     foreach (var transmission in sendTransmissionsTable.Values)
                     {
-                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                            TRANSMISSION_TIMEOUT)
+                        try
                         {
-                            StopSenderTransmission(transmission);
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
+                            {
+                                StopSenderTransmission(transmission);
                             
-                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+
+                                throw new SocketException(10060);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            continue;
                         }
                     }
                 }
@@ -405,12 +415,21 @@ namespace PBUdpTransport
                 {
                     foreach (var transmission in sendTransmissionsTable.Values)
                     {
-                        if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                            TRANSMISSION_TIMEOUT)
+                        try
                         {
-                            StopReceiverTransmission(transmission);
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
+                            {
+                                StopReceiverTransmission(transmission);
                             
-                            transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                throw new SocketException(10060);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            continue;
                         }
                     }
                 }
