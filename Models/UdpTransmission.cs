@@ -15,7 +15,7 @@ namespace PBUdpTransport.Models
         public ushort SmallestPendingPacketIndex { get; set; }
         public EventHandler<CompletedTransmissionArgs> Completed { get; set; }
         public int ReceivedLenght { get; set; }
-        public bool Reliable { get; set; }
+        public ESendMode SendMode { get; set; }
         public ushort LasPacketId { get; set; }
         public DateTime LastDatagramReceiveTime { get; set; }
     }

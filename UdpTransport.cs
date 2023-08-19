@@ -80,7 +80,7 @@ namespace PBUdpTransport
             _socketReceiver.Close();
         }
         
-        public Task SendAsync(byte[] data, IPEndPoint remoteEndpoint, bool reliable)
+        public Task SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
         {
             if (!_running)
                 throw new Exception($"[{nameof(UdpTransport)}] you must first call the start method");
@@ -90,7 +90,7 @@ namespace PBUdpTransport
             var packets = PacketHelper.CreatePacketSequence(
                 data, 
                 _udpConfiguration.MTU, sequenceId, 
-                _udpConfiguration.TransmissionWindowSize);
+                _udpConfiguration.TransmissionWindowSize, sendMode);
             
             var transmission = new UdpTransmission
             {
@@ -98,7 +98,7 @@ namespace PBUdpTransport
                 WindowSize = _udpConfiguration.TransmissionWindowSize,
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
-                Reliable = reliable,
+                SendMode = sendMode,
                 Id = sequenceId,
                 LasPacketId = (ushort)(packets.Count - 1),
                 LastDatagramReceiveTime = DateTime.Now
@@ -126,7 +126,7 @@ namespace PBUdpTransport
             return taskSource.Task;
         }
 
-        public void Send(byte[] data, IPEndPoint remoteEndpoint, bool reliable)
+        public void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
         {
             var sequenceId = ++_transmissionsCount;
             
@@ -134,15 +134,15 @@ namespace PBUdpTransport
                 data, 
                 _udpConfiguration.MTU, 
                 sequenceId, 
-                _udpConfiguration.TransmissionWindowSize);
+                _udpConfiguration.TransmissionWindowSize, sendMode);
             
             var transmission = new UdpTransmission
             {
                 Packets = packets,
-                WindowSize = 2,
+                WindowSize = _udpConfiguration.TransmissionWindowSize,
                 SmallestPendingPacketIndex = 0,
                 RemoteEndPoint = remoteEndpoint,
-                Reliable = reliable,
+                SendMode = sendMode,
                 Id = sequenceId,
                 LasPacketId = (ushort)(packets.Count - 1),
                 LastDatagramReceiveTime = DateTime.Now
@@ -164,7 +164,7 @@ namespace PBUdpTransport
             
             var taskSource = new TaskCompletionSource<TransportMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            _receiveEventHandler = (sender, args) =>
+            _receiveEventHandler = (_, args) =>
             {
                 if (args.IsSuccessfullyCompleted)
                 {
@@ -181,17 +181,14 @@ namespace PBUdpTransport
         
         private void CreateTransmission(byte[] data, IPEndPoint remoteEndPoint)
         {
+            
             var messageLength = NetworkMessageHelper.GetMessageLength(data);
-             
             var id = NetworkMessageHelper.GetTransmissionId(data);
-         
-            //TODO:
             var windowSize = NetworkMessageHelper.GetWindowSize(data);
+            var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
+            var sendMode = NetworkMessageHelper.GetSendMode(data);
             
             var packetSequenceLength = PacketHelper.GetPacketSequenceSize(messageLength, _udpConfiguration.MTU);
-
-            var transmissionId = NetworkMessageHelper.GetTransmissionId(data);
-            
             var hasTransmissionsTable =
                 _udpReceiverTransmissionsTable.TryGetValue(remoteEndPoint, out var transmissions);
             
@@ -207,7 +204,7 @@ namespace PBUdpTransport
                 var packet = new Packet
                 {
                     PacketId = i,
-                    HasAck = i == 0,
+                    HasAck = sendMode == ESendMode.Unreliable || i == 0,
                     ResendAttemptCount = _udpConfiguration.MaxPacketResendCount,
                     ResendTime = DateTime.Now
                 };
@@ -224,7 +221,8 @@ namespace PBUdpTransport
                 Packets = packets,
                 RemoteEndPoint = remoteEndPoint,
                 LasPacketId = (ushort)(packetSequenceLength - 1),
-                LastDatagramReceiveTime = DateTime.Now
+                LastDatagramReceiveTime = DateTime.Now,
+                SendMode = sendMode
             };
 
             ConcurrentDictionary<ushort, UdpTransmission> clientTransmissionTable;
@@ -275,7 +273,9 @@ namespace PBUdpTransport
                         {
                             var maxSendTime = DateTime.Now.AddMilliseconds(PACKET_MAX_SEND_TIME);
 
-                            var windowUpperBound = transmission.WindowLowerBoundIndex + transmission.WindowSize;
+                            var windowUpperBound = transmission.SendMode == ESendMode.Reliable
+                                ? transmission.WindowLowerBoundIndex + transmission.WindowSize
+                                : transmission.Packets.Count;
             
                             for (var i = transmission.WindowLowerBoundIndex;
                                  i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
@@ -315,7 +315,7 @@ namespace PBUdpTransport
             }
         }
 
-        private async Task ProcessSocketRawReceive()
+       private async Task ProcessSocketRawReceive()
         {
             try
             {
@@ -420,7 +420,6 @@ namespace PBUdpTransport
                         catch (Exception e)
                         {
                             Console.WriteLine(e);
-                            continue;
                         }
                     }
                 }
@@ -445,7 +444,6 @@ namespace PBUdpTransport
                         catch (Exception e)
                         {
                             Console.WriteLine(e);
-                            continue;
                         }
                     }
                 }
@@ -456,7 +454,7 @@ namespace PBUdpTransport
         {
             if(_udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
             {
-                transmissions.TryRemove(transmission.Id, out var trans);
+                transmissions.TryRemove(transmission.Id, out _);
             }
         }
         
@@ -464,7 +462,7 @@ namespace PBUdpTransport
         {
             if(_udpSenderTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
             {
-                transmissions.TryRemove(transmission.Id, out var trans);
+                transmissions.TryRemove(transmission.Id, out _);
             }
         }
 
@@ -497,8 +495,8 @@ namespace PBUdpTransport
                     
                     if(!hasTransmission)
                         break;
-                    
-                    SendAck(transmission.Id, ipEndpoint, packetId);
+                    if(transmission.SendMode == ESendMode.Reliable)
+                        SendAck(transmission.Id, ipEndpoint, packetId);
                     WritePacket(transmission, data, packetId, rawPacket.Count);
                     break;
                 case EPacketFlags.FirstPacket:
@@ -529,7 +527,7 @@ namespace PBUdpTransport
         {
             if (transmission.Packets.TryGetValue(packetId, out var packet))
             {
-                if(packet.HasAck)
+                if(packet.HasAck && transmission.SendMode == ESendMode.Reliable)
                     return;
                 
                 packet.Payload = data;
@@ -540,7 +538,12 @@ namespace PBUdpTransport
                 transmission.LastDatagramReceiveTime = DateTime.Now;
             }
 
-            if (packetId == transmission.SmallestPendingPacketIndex)
+            if (transmission.SendMode == ESendMode.Unreliable)
+            {
+                transmission.SmallestPendingPacketIndex = packetId;
+            }
+
+            if (packetId == transmission.SmallestPendingPacketIndex && transmission.SendMode == ESendMode.Reliable)
             {
                 ShiftTransmissionWindow(transmission);
             }
@@ -614,17 +617,6 @@ namespace PBUdpTransport
             {
                 ShiftTransmissionWindow(transmission);
             }
-        }
-        
-        private bool HasCompleteTransmission(UdpTransmission transmission)
-        {
-            foreach (var packet in transmission.Packets.Values)
-            {
-                if (!packet.HasAck)
-                    return false;
-            }
-
-            return true;
         }
 
         private void SendAck(ushort transmissionId, IPEndPoint remoteEndpoint, ushort packetId)
