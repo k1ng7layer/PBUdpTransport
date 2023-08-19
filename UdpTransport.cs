@@ -311,15 +311,21 @@ namespace PBUdpTransport
             {
                 while (_running)
                 {
-                    var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
+                    try
+                    {
+                        var iEndpoint = new IPEndPoint(IPAddress.Any, 0);
                     
-                    var data = new byte[_udpConfiguration.ReceiveBufferSize];
+                        var data = new byte[_udpConfiguration.ReceiveBufferSize];
+                        
+                        var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
                     
-                    var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
-                    
-                    var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data, receiveFromResult.ReceivedBytes);
-            
-                    _receivedRawPacketsQueue.Enqueue(rawPacket);
+                        var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data, receiveFromResult.ReceivedBytes);
+                        _receivedRawPacketsQueue.Enqueue(rawPacket);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
                 }
             }
             catch (Exception e)
@@ -422,7 +428,7 @@ namespace PBUdpTransport
                             {
                                 StopReceiverTransmission(transmission);
                             
-                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+                                _receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
                                 throw new SocketException(10060);
                             }
                         }
