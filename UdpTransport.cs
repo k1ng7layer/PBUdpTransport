@@ -21,7 +21,7 @@ namespace PBUdpTransport
         private const int PACKET_RESENT_TIME = 100;
         private const int PACKET_MAX_SEND_TIME = 300;
         private const int UDP_HEADERS_LENGTH = 8;
-        private const double TRANSMISSION_TIMEOUT = 10000;
+        private const double TRANSMISSION_TIMEOUT = 800;
         
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly IUdpConfiguration _udpConfiguration;
@@ -65,7 +65,7 @@ namespace PBUdpTransport
             Task.Run(async () => await ProcessSocketRawSend(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsReceiveQueue(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsSend(), _cancellationTokenSource.Token);
-            Task.Run(ProcessTimeOut, _cancellationTokenSource.Token);
+            //Task.Run(ProcessTimeOut, _cancellationTokenSource.Token);
         }
 
         public void Stop()
@@ -470,7 +470,7 @@ namespace PBUdpTransport
                         {
                             Console.WriteLine(e);
                         }
-                    }
+                    }                       
                 }
                 
                 var sendersTransmissionsTables = _udpReceiverTransmissionsTable;
@@ -481,10 +481,11 @@ namespace PBUdpTransport
                     {
                         try
                         {
-                           // Console.Out.WriteLineAsync($"timeout run transmission id = {transmission.Id}");
                             if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                                TRANSMISSION_TIMEOUT)
+                                TRANSMISSION_TIMEOUT && !transmission.IsCompleted)
                             {
+                                Console.Out.WriteLineAsync($"timeout run transmission id = {transmission.Id}");
+                                
                                 StopReceiverTransmission(transmission);
                             
                                 _receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
@@ -606,6 +607,15 @@ namespace PBUdpTransport
 
         private void PrepareMessage(UdpTransmission transmission)
         {
+            var hasTransmissions =  _udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions);
+
+            if (hasTransmissions)
+            {
+                var remove = transmissions.TryRemove(transmission.Id, out _);
+                Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
+            }
+
+            transmission.IsCompleted = true;
             var messagePayload = new byte[transmission.ReceivedLenght - UDP_HEADERS_LENGTH * (transmission.Packets.Count - 1)];
             var offset = 0;
             foreach (var packet in transmission.Packets.Values)
@@ -623,14 +633,6 @@ namespace PBUdpTransport
             }
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
-            
-            var hasTransmissions =  _udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions);
-
-            if (hasTransmissions)
-            {
-                var remove = transmissions.TryRemove(transmission.Id, out _);
-                Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
-            }
 
             _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(message, true));
             //_transportMessagesQueue.Enqueue(message);
