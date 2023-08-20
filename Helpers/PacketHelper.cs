@@ -10,11 +10,12 @@ namespace PBUdpTransport.Helpers
         public static ConcurrentDictionary<ushort, Packet> CreatePacketSequence(byte[] data, 
             int mtu, 
             ushort sequenceId,
-            ushort windowSize)
+            ushort windowSize,
+            ESendMode sendMode)
         {
             const int headersLength = 8;
 
-            var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0, windowSize);
+            var firstPacket = CreateControlPacket(EPacketFlags.FirstPacket, data.Length, sequenceId, 0, windowSize, sendMode);
 
             ushort packetId = 1;
             var span = new Span<byte>(data);
@@ -56,7 +57,8 @@ namespace PBUdpTransport.Helpers
                 var packet = new Packet
                 {
                     Payload = totalPayload,
-                    PacketId = packetId
+                    PacketId = packetId,
+                    HasAck = sendMode == ESendMode.Unreliable
                 };
                 
                 dictionary.TryAdd(packetId, packet);
@@ -99,15 +101,19 @@ namespace PBUdpTransport.Helpers
         public static Packet CreateControlPacket(
             EPacketFlags packetFlags, 
             int messageLength,
-            ushort transmissionId, ushort packetId, ushort windowSize)
+            ushort transmissionId, 
+            ushort packetId, 
+            ushort windowSize, 
+            ESendMode sendMode)
         {
-            var byteWriter = new ByteWriter(14);  
+            var byteWriter = new ByteWriter(16);  
             byteWriter.AddUshort((ushort)EProtocolType.UDP);
             byteWriter.AddUshort((ushort)packetFlags);
             byteWriter.AddUshort(transmissionId);
             byteWriter.AddUshort(packetId);
             byteWriter.AddInt(messageLength);
             byteWriter.AddUshort(windowSize);
+            byteWriter.AddUshort((ushort)sendMode);
 
             var packet = new Packet()
             {

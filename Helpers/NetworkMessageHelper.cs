@@ -59,6 +59,15 @@ namespace PBUdpTransport.Helpers
             return BitConverter.ToUInt16(lengthSpan);
         }
         
+        public static ESendMode GetSendMode(byte[] data)
+        {
+            //TODO:
+            var byteSpan = new Span<byte>(data);
+            var sendModeSpan = byteSpan.Slice(14, 2);
+
+            return (ESendMode)BitConverter.ToUInt16(sendModeSpan);
+        }
+        
         public static int GetMessageSize(byte[] data)
         {
             //TODO:
