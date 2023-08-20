@@ -21,7 +21,7 @@ namespace PBUdpTransport
         private const int PACKET_RESENT_TIME = 100;
         private const int PACKET_MAX_SEND_TIME = 300;
         private const int UDP_HEADERS_LENGTH = 8;
-        private const double TRANSMISSION_TIMEOUT = 400;
+        private const double TRANSMISSION_TIMEOUT = 10000;
         
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly IUdpConfiguration _udpConfiguration;
@@ -271,37 +271,15 @@ namespace PBUdpTransport
                     {
                         foreach (var transmission in sendTransmissionsTable.Values)
                         {
-                            var maxSendTime = DateTime.Now.AddMilliseconds(PACKET_MAX_SEND_TIME);
-
-                            var windowUpperBound = transmission.SendMode == ESendMode.Reliable
-                                ? transmission.WindowLowerBoundIndex + transmission.WindowSize
-                                : transmission.Packets.Count;
-            
-                            for (var i = transmission.WindowLowerBoundIndex;
-                                 i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
-                                 i++)
+                            if (transmission.SendMode == ESendMode.Reliable)
                             {
-                                try
-                                {
-                                    transmission.Packets.TryGetValue(i, out var packet);
-
-                                    if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck && packet.ResendAttemptCount < _udpConfiguration.MaxPacketResendCount)
-                                    {
-                                        packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
-                
-                                        packet.ResendAttemptCount++;
-                                    
-                                        await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
-                                    
-                                        await Task.Delay(SEND_DELAY);
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
-                                    Console.WriteLine(e);
-                                    throw;
-                                }
+                                await ReliableSendCycle(transmission);
+                            }
+                            else
+                            {
+                                await UnReliableSend(transmission);
+                                var resultRemove = sendTransmissionsTable.TryRemove(transmission.Id, out _);
+                                transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
                             }
                         }
                     }
@@ -314,6 +292,77 @@ namespace PBUdpTransport
                 throw;
             }
         }
+
+
+       private async Task UnReliableSend(UdpTransmission transmission)
+       {
+           var maxSendTime = DateTime.Now.AddMilliseconds(PACKET_MAX_SEND_TIME);
+
+           var windowUpperBound = transmission.Packets.Count;
+           
+           for (var i = transmission.WindowLowerBoundIndex;
+                i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
+                i++)
+           {
+               try
+               {
+                   transmission.Packets.TryGetValue(i, out var packet);
+                   //await Console.Out.WriteLineAsync($"send packet with id {packet.PacketId}");
+                   if (packet != null && packet.ResendTime <= DateTime.Now)
+                   {
+                       packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
+                
+                       packet.ResendAttemptCount++;
+                                        
+                       await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
+                                    
+                       await Task.Delay(SEND_DELAY);
+                   }
+               }
+               catch (Exception e)
+               {
+                   transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
+                   Console.WriteLine(e);
+                   throw;
+               }
+           }
+       }
+
+       private async Task ReliableSendCycle(UdpTransmission transmission)
+       {
+           var maxSendTime = DateTime.Now.AddMilliseconds(PACKET_MAX_SEND_TIME);
+
+           var windowUpperBound = transmission.SendMode == ESendMode.Reliable
+               ? transmission.WindowLowerBoundIndex + transmission.WindowSize
+               : transmission.Packets.Count;
+           
+           for (var i = transmission.WindowLowerBoundIndex;
+                i < windowUpperBound && DateTime.Now < maxSendTime && i <= transmission.Packets.Count - 1 && transmission.Packets.Count > 0; 
+                i++)
+           {
+               try
+               {
+                   transmission.Packets.TryGetValue(i, out var packet);
+                   //await Console.Out.WriteLineAsync($"send packet with id {packet.PacketId}");
+                   if (packet != null && packet.ResendTime <= DateTime.Now && !packet.HasAck && packet.ResendAttemptCount < _udpConfiguration.MaxPacketResendCount)
+                   {
+                       packet.ResendTime = DateTime.Now.AddMilliseconds(PACKET_RESENT_TIME);
+                
+                       packet.ResendAttemptCount++;
+                                        
+                       await _socketReceiver.SendToAsync(packet.Payload, SocketFlags.None, transmission.RemoteEndPoint);
+                                    
+                       await Task.Delay(SEND_DELAY);
+                   }
+               }
+               catch (Exception e)
+               {
+                   transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
+                   Console.WriteLine(e);
+                   throw;
+               }
+           }
+       }
 
        private async Task ProcessSocketRawReceive()
         {
@@ -432,6 +481,7 @@ namespace PBUdpTransport
                     {
                         try
                         {
+                           // Console.Out.WriteLineAsync($"timeout run transmission id = {transmission.Id}");
                             if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
                                 TRANSMISSION_TIMEOUT)
                             {
@@ -578,7 +628,8 @@ namespace PBUdpTransport
 
             if (hasTransmissions)
             {
-                transmissions.TryRemove(transmission.Id, out _);
+                var remove = transmissions.TryRemove(transmission.Id, out _);
+                Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
             }
 
             _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(message, true));
