@@ -286,7 +286,7 @@ namespace PBUdpTransport
                             else
                             {
                                 await UnReliableSend(transmission);
-                                var resultRemove = sendTransmissionsTable.TryRemove(transmission.Id, out _);
+                                sendTransmissionsTable.TryRemove(transmission.Id, out _);
                                 transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
                             }
                         }
