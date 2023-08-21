@@ -65,7 +65,6 @@ namespace PBUdpTransport
             Task.Run(async () => await ProcessSocketRawSend(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsReceiveQueue(), _cancellationTokenSource.Token);
             Task.Run(async () => await ProcessTransmissionsSend(), _cancellationTokenSource.Token);
-            //Task.Run(ProcessTimeOut, _cancellationTokenSource.Token);
         }
 
         public void Stop()
@@ -453,63 +452,6 @@ namespace PBUdpTransport
             }
         }
 
-        private void ProcessTimeOut()
-        {
-            while (_running)
-            {
-                var sendTransmissionsTables = _udpSenderTransmissionsTable;
-                
-                foreach (var sendTransmissionsTable in sendTransmissionsTables.Values)
-                {
-                    foreach (var transmission in sendTransmissionsTable.Values)
-                    {
-                        try
-                        {
-                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                                TRANSMISSION_TIMEOUT)
-                            {
-                                TryStopSenderTransmission(transmission);
-                            
-                                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
-
-                                throw new SocketException(10060);
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e);
-                        }
-                    }                       
-                }
-                
-                var sendersTransmissionsTables = _udpReceiverTransmissionsTable;
-                
-                foreach (var sendTransmissionsTable in sendersTransmissionsTables.Values)
-                {
-                    foreach (var transmission in sendTransmissionsTable.Values)
-                    {
-                        try
-                        {
-                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                                TRANSMISSION_TIMEOUT && !transmission.IsCompleted)
-                            {
-                                Console.Out.WriteLineAsync($"timeout run transmission id = {transmission.Id}");
-                                
-                                TryStopReceiverTransmission(transmission);
-                            
-                                
-                                throw new SocketException(10060);
-                            }_receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e);
-                        }
-                    }
-                }
-            }
-        }
-
         private bool TryStopReceiverTransmission(UdpTransmission transmission)
         {
             if(_udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
@@ -631,8 +573,7 @@ namespace PBUdpTransport
 
             if (hasTransmissions)
             {
-                var remove = transmissions.TryRemove(transmission.Id, out _);
-                //Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
+                transmissions.TryRemove(transmission.Id, out _);
             }
 
             transmission.IsCompleted = true;
