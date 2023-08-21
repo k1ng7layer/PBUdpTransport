@@ -18,5 +18,6 @@ namespace PBUdpTransport.Models
         public ESendMode SendMode { get; set; }
         public ushort LasPacketId { get; set; }
         public DateTime LastDatagramReceiveTime { get; set; }
+        public bool IsCompleted { get; set; }
     }
 }
