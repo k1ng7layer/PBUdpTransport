@@ -271,6 +271,15 @@ namespace PBUdpTransport
                     {
                         foreach (var transmission in sendTransmissionsTable.Values)
                         {
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
+                            {
+                                TryStopSenderTransmission(transmission);
+                                TryStopReceiverTransmission(transmission);
+                                
+                                throw new SocketException(10060);
+                            }
+
                             if (transmission.SendMode == ESendMode.Reliable)
                             {
                                 await ReliableSendCycle(transmission);
@@ -459,7 +468,7 @@ namespace PBUdpTransport
                             if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
                                 TRANSMISSION_TIMEOUT)
                             {
-                                StopSenderTransmission(transmission);
+                                TryStopSenderTransmission(transmission);
                             
                                 transmission.Completed(this, new CompletedTransmissionArgs(null, false));
 
@@ -486,11 +495,11 @@ namespace PBUdpTransport
                             {
                                 Console.Out.WriteLineAsync($"timeout run transmission id = {transmission.Id}");
                                 
-                                StopReceiverTransmission(transmission);
+                                TryStopReceiverTransmission(transmission);
                             
-                                _receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
+                                
                                 throw new SocketException(10060);
-                            }
+                            }_receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
                         }
                         catch (Exception e)
                         {
@@ -501,20 +510,31 @@ namespace PBUdpTransport
             }
         }
 
-        private void StopReceiverTransmission(UdpTransmission transmission)
+        private bool TryStopReceiverTransmission(UdpTransmission transmission)
         {
             if(_udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
             {
                 transmissions.TryRemove(transmission.Id, out _);
+                _receiveEventHandler(this, new CompletedTransmissionArgs(null, false));
+
+                return true;
             }
+
+            return false;
         }
         
-        private void StopSenderTransmission(UdpTransmission transmission)
+        private bool TryStopSenderTransmission(UdpTransmission transmission)
         {
             if(_udpSenderTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions))
             {
                 transmissions.TryRemove(transmission.Id, out _);
+                
+                transmission.Completed(this, new CompletedTransmissionArgs(null, false));
+
+                return true;
             }
+
+            return false;
         }
 
         private void HandleRawPacket(RawPacket rawPacket)
@@ -612,7 +632,7 @@ namespace PBUdpTransport
             if (hasTransmissions)
             {
                 var remove = transmissions.TryRemove(transmission.Id, out _);
-                Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
+                //Console.Out.WriteLineAsync($"removed transmission with id = {transmission.Id}, {remove}");
             }
 
             transmission.IsCompleted = true;
