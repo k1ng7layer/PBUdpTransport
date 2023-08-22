@@ -260,50 +260,42 @@ namespace PBUdpTransport
         
        private async Task ProcessTransmissionsSend()
         {
-            try
+            while (_running)
             {
-                while (_running)
+                var sendTransmissionsTables = _udpSenderTransmissionsTable;
+
+                foreach (var sendTransmissionsTable in sendTransmissionsTables.Values)
                 {
-                    var sendTransmissionsTables = _udpSenderTransmissionsTable;
-
-                    foreach (var sendTransmissionsTable in sendTransmissionsTables.Values)
+                    foreach (var transmission in sendTransmissionsTable.Values)
                     {
-                        foreach (var transmission in sendTransmissionsTable.Values)
+                        try
                         {
-                            try
+                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                TRANSMISSION_TIMEOUT)
                             {
-                                if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                                    TRANSMISSION_TIMEOUT)
-                                {
-                                    TryStopSenderTransmission(transmission);
-                                    TryStopReceiverTransmission(transmission);
+                                TryStopSenderTransmission(transmission);
+                                TryStopReceiverTransmission(transmission);
                                 
-                                    throw new SocketException(10060);
-                                }
+                                throw new SocketException(10060);
+                            }
 
-                                if (transmission.SendMode == ESendMode.Reliable)
-                                {
-                                    await ReliableSendCycle(transmission);
-                                }
-                                else
-                                {
-                                    await UnReliableSend(transmission);
-                                    sendTransmissionsTable.TryRemove(transmission.Id, out _);
-                                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
-                                }
-                            }
-                            catch (Exception e)
+                            if (transmission.SendMode == ESendMode.Reliable)
                             {
-                                Console.WriteLine(e);
+                                await ReliableSendCycle(transmission);
                             }
+                            else
+                            {
+                                await UnReliableSend(transmission);
+                                sendTransmissionsTable.TryRemove(transmission.Id, out _);
+                                transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
                         }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                
-                Console.WriteLine(e);
             }
         }
 
@@ -397,7 +389,7 @@ namespace PBUdpTransport
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e);
+                        //Console.WriteLine(e);
                     }
                 }
             }
