@@ -74,7 +74,7 @@ namespace PBUdpTransport.Helpers
         public static int GetPacketSequenceSize(byte[] data, int mtu)
         {
             var packetsNum = data.Length / (double)mtu;
-            var packetsNumRounded = (int)Math.Round(packetsNum, MidpointRounding.AwayFromZero);
+            var packetsNumRounded = (int)Math.Ceiling(packetsNum);
 
             return packetsNumRounded;
         }
@@ -82,12 +82,12 @@ namespace PBUdpTransport.Helpers
         public static int GetPacketSequenceSize(int messageLength, int mtu)
         {
             var packetsNumWoHeaders = messageLength / (double)mtu;
-            var packetsNumRounded = (int)Math.Round(packetsNumWoHeaders, MidpointRounding.ToPositiveInfinity);
+            var packetsNumRounded = (int)Math.Ceiling(packetsNumWoHeaders);
 
             var totalPacketsHeadersLength = packetsNumRounded * 8;
             
             var packetNumWithHeaders = (messageLength + totalPacketsHeadersLength) / (double)mtu;
-            var packetNumRoundedWithHeaders = (int)Math.Round(packetNumWithHeaders, MidpointRounding.ToPositiveInfinity);
+            var packetNumRoundedWithHeaders = (int)Math.Ceiling(packetNumWithHeaders);
             
             return packetNumRoundedWithHeaders + 1;
         }
