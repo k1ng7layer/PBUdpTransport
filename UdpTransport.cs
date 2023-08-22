@@ -270,24 +270,31 @@ namespace PBUdpTransport
                     {
                         foreach (var transmission in sendTransmissionsTable.Values)
                         {
-                            if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
-                                TRANSMISSION_TIMEOUT)
+                            try
                             {
-                                TryStopSenderTransmission(transmission);
-                                TryStopReceiverTransmission(transmission);
+                                if ((DateTime.Now - transmission.LastDatagramReceiveTime).TotalMilliseconds >
+                                    TRANSMISSION_TIMEOUT)
+                                {
+                                    TryStopSenderTransmission(transmission);
+                                    TryStopReceiverTransmission(transmission);
                                 
-                                throw new SocketException(10060);
-                            }
+                                    throw new SocketException(10060);
+                                }
 
-                            if (transmission.SendMode == ESendMode.Reliable)
-                            {
-                                await ReliableSendCycle(transmission);
+                                if (transmission.SendMode == ESendMode.Reliable)
+                                {
+                                    await ReliableSendCycle(transmission);
+                                }
+                                else
+                                {
+                                    await UnReliableSend(transmission);
+                                    sendTransmissionsTable.TryRemove(transmission.Id, out _);
+                                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
+                                }
                             }
-                            else
+                            catch (Exception e)
                             {
-                                await UnReliableSend(transmission);
-                                sendTransmissionsTable.TryRemove(transmission.Id, out _);
-                                transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
+                                Console.WriteLine(e);
                             }
                         }
                     }
@@ -297,7 +304,6 @@ namespace PBUdpTransport
             {
                 
                 Console.WriteLine(e);
-                throw;
             }
         }
 
